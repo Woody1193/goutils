@@ -22,9 +22,10 @@ type ErrorProvider struct {
 // generating errors
 var DefaultErrorProvider = ErrorProvider{SkipFrames: 2, PackageBase: "Woody1193"}
 
-// BackendError contains information necessary to represent an error
-// in our backend services
-type Error struct {
+// GError contains information necessary to represent an error. We use the
+// value GError instead of Error so, if it is embedded into another type, it
+// will not invalidate the error interface
+type GError struct {
 	Environment string
 	Package     string
 	Class       string
@@ -38,7 +39,7 @@ type Error struct {
 
 // NewError creates a new error in the default context. See documentation
 // of GenerateError for more information.
-func NewError(env string, inner error, message string, args ...interface{}) *Error {
+func NewError(env string, inner error, message string, args ...interface{}) *GError {
 	return DefaultErrorProvider.GenerateError(env, inner, message, args...)
 }
 
@@ -48,7 +49,7 @@ func NewError(env string, inner error, message string, args ...interface{}) *Err
 // case then a custom error provider should be used with the proper number of skip
 // frames. See the runtime documentation for more information.
 func (provider ErrorProvider) GenerateError(env string, inner error,
-	message string, args ...interface{}) *Error {
+	message string, args ...interface{}) *GError {
 
 	// First, get the file and line number of the caller (we'll use this
 	// to get information about where the error occurred) and then get
@@ -87,7 +88,7 @@ func (provider ErrorProvider) GenerateError(env string, inner error,
 
 	// Finally, inject all this information into the error itself
 	// and return it
-	return &Error{
+	return &GError{
 		Environment: env,
 		Package:     packageName,
 		Class:       class,
@@ -101,7 +102,7 @@ func (provider ErrorProvider) GenerateError(env string, inner error,
 }
 
 // Error creates an error string from the backend error
-func (err *Error) Error() string {
+func (err *GError) Error() string {
 
 	// First, recombine the package, class and function name
 	// into a fully-qualified function name

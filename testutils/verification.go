@@ -28,8 +28,8 @@ func InnerErrorVerifier(message string) func(error) {
 // ErrorVerifier verifies the fields on a backend Error
 func ErrorVerifier(env string, pkg string, file string, class string,
 	function string, line int, innerVerifier func(error), message string,
-	fullMsg string) func(*utils.Error) {
-	return func(err *utils.Error) {
+	fullMsg string) func(*utils.GError) {
+	return func(err *utils.GError) {
 		Expect(err.Class).Should(Equal(class))
 		Expect(err.Environment).Should(Equal(env))
 		Expect(err.File).Should(Equal(file))

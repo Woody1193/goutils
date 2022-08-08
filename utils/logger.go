@@ -98,7 +98,7 @@ func (logger *Logger) Log(message string, args ...interface{}) {
 
 // Generate and log an error from the inner error and message. The
 // resulting error will be returned for use by the caller
-func (logger *Logger) Error(inner error, message string, args ...interface{}) *Error {
+func (logger *Logger) Error(inner error, message string, args ...interface{}) *GError {
 	err := logger.errProvider.GenerateError(logger.Environment, inner, message, args...)
 	logger.errLog.Printf("[Error]%s%v", logger.Prefix, err)
 	return err

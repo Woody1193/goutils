@@ -14,7 +14,7 @@ type errorGenerator struct {
 }
 
 // Generate a test error with an inner error or without one
-func (e *errorGenerator) generate(hasInner bool) *Error {
+func (e *errorGenerator) generate(hasInner bool) *GError {
 
 	// If we want to test with an inner error then set it here
 	var err error
@@ -28,7 +28,7 @@ func (e *errorGenerator) generate(hasInner bool) *Error {
 
 // Helper function that we'll use to test error generation from
 // within the context of a global function
-func generate(hasInner bool) *Error {
+func generate(hasInner bool) *GError {
 
 	// If we want to test with an inner error then set it here
 	var err error
@@ -44,7 +44,7 @@ var _ = Describe("Errors Tests", func() {
 
 	// Tests the conditions determining how an error is generated from various operating conditions
 	DescribeTable("NewError - Conditions",
-		func(generator func(bool) *Error, class string, line int,
+		func(generator func(bool) *GError, class string, line int,
 			hasInner bool, inner string, innerMessage string, message string) {
 
 			// First, generate the error from the generator
@@ -110,7 +110,7 @@ var _ = Describe("Errors Tests", func() {
 
 		// Create a function to return an error as the error interface and then call it
 		err := func() error {
-			return &Error{
+			return &GError{
 				Environment: "test",
 				Package:     "pack",
 				Class:       "class",
@@ -138,7 +138,7 @@ var _ = Describe("Errors Tests", func() {
 
 		// Create a function to return an error as the error interface and then call it
 		err := func() error {
-			return &Error{
+			return &GError{
 				Environment: "test",
 				Package:     "pack",
 				Class:       "class",
@@ -150,7 +150,7 @@ var _ = Describe("Errors Tests", func() {
 		}()
 
 		// Attempt to cast the error to its specific type
-		converted := As[*Error](err)
+		converted := As[*GError](err)
 
 		// Verify the results
 		Expect(err).ShouldNot(BeNil())
