@@ -3,6 +3,8 @@ package utils
 import (
 	"bytes"
 	"fmt"
+	"log"
+	"os"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -16,12 +18,34 @@ var _ = Describe("Logger Tests", func() {
 
 		// Create our logger from a test service with a test environment
 		// and then generate a second logger with a different number of skip-frames
-		logger1 := NewLogger("testd", "test")
+		logger1 := NewLogger("testd", "test",
+			WithInfoLog(*log.New(os.Stdout, "info", log.LstdFlags)),
+			WithErrorLog(*log.New(os.Stderr, "error", log.LstdFlags)),
+			WithErrorProvider(ErrorProvider{SkipFrames: 2, PackageBase: "test"}),
+			WithPrefix("derp"))
 		logger2 := logger1.ChangeFrame(5)
 
 		// Verify that the loggers are separate objects
+		Expect(logger1.Prefix).Should(Equal("derp"))
+		Expect(logger1.Environment).Should(Equal("test"))
+		Expect(logger1.infoLog.Writer()).Should(Equal(os.Stdout))
+		Expect(logger1.infoLog.Prefix()).Should(Equal("info"))
+		Expect(logger1.infoLog.Flags()).Should(Equal(log.LstdFlags))
+		Expect(logger1.errLog.Writer()).Should(Equal(os.Stderr))
+		Expect(logger1.errLog.Prefix()).Should(Equal("error"))
+		Expect(logger1.errLog.Flags()).Should(Equal(log.LstdFlags))
 		Expect(logger1.errProvider.SkipFrames).Should(Equal(2))
+		Expect(logger1.errProvider.PackageBase).Should(Equal("test"))
+		Expect(logger2.Prefix).Should(Equal("derp"))
+		Expect(logger2.Environment).Should(Equal("test"))
+		Expect(logger2.infoLog.Writer()).Should(Equal(os.Stdout))
+		Expect(logger2.infoLog.Prefix()).Should(Equal("info"))
+		Expect(logger2.infoLog.Flags()).Should(Equal(log.LstdFlags))
+		Expect(logger2.errLog.Writer()).Should(Equal(os.Stderr))
+		Expect(logger2.errLog.Prefix()).Should(Equal("error"))
+		Expect(logger2.errLog.Flags()).Should(Equal(log.LstdFlags))
 		Expect(logger2.errProvider.SkipFrames).Should(Equal(5))
+		Expect(logger2.errProvider.PackageBase).Should(Equal("test"))
 	})
 
 	// Tests that logging a message works as expected
@@ -61,7 +85,7 @@ var _ = Describe("Logger Tests", func() {
 
 		// Finally, extract the data from the buffer and verify the value of the message
 		data := string(buf.Bytes())
-		Expect(data).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 59): " +
+		Expect(data).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 83): " +
 			"Test message. String parameter: derp, Integer parameter: 42, Inner: Test error.\n"))
 
 		// Verify the data in the error
@@ -72,10 +96,10 @@ var _ = Describe("Logger Tests", func() {
 		Expect(err.GeneratedAt).ShouldNot(BeNil())
 		Expect(err.Inner).Should(HaveOccurred())
 		Expect(err.Inner.Error()).Should(Equal("Test error"))
-		Expect(err.LineNumber).Should(Equal(59))
+		Expect(err.LineNumber).Should(Equal(83))
 		Expect(err.Message).Should(Equal("Test message. String parameter: derp, Integer parameter: 42"))
 		Expect(err.Package).Should(Equal("utils"))
-		Expect(err.Error()).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 59): " +
+		Expect(err.Error()).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 83): " +
 			"Test message. String parameter: derp, Integer parameter: 42, Inner: Test error."))
 	})
 
@@ -107,10 +131,10 @@ var _ = Describe("Logger Tests", func() {
 		Expect(err.GeneratedAt).ShouldNot(BeNil())
 		Expect(err.Inner).Should(HaveOccurred())
 		Expect(err.Inner.Error()).Should(Equal("Test error"))
-		Expect(err.LineNumber).Should(Equal(98))
+		Expect(err.LineNumber).Should(Equal(122))
 		Expect(err.Message).Should(Equal("Test message. String parameter: derp, Integer parameter: 42"))
 		Expect(err.Package).Should(Equal("utils"))
-		Expect(err.Error()).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 98): " +
+		Expect(err.Error()).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 122): " +
 			"Test message. String parameter: derp, Integer parameter: 42, Inner: Test error."))
 	})
 })
