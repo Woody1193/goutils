@@ -1,0 +1,107 @@
+package collections
+
+import "sync"
+
+// IndexedMap is a list structure with O(1) lookup for a field that is
+// indexed based on a key value
+type IndexedMap[U comparable, T any] struct {
+	indexes map[U]int
+	data    []T
+	ctrl    *sync.RWMutex
+}
+
+// NewIndexedMap creates a new, empty IndexedMap
+func NewIndexedMap[U comparable, T any]() *IndexedMap[U, T] {
+	return &IndexedMap[U, T]{
+		indexes: make(map[U]int),
+		data:    make([]T, 0),
+		ctrl:    new(sync.RWMutex),
+	}
+}
+
+// Add adds a new key and value to the indexed map. If the overwrite
+// function is true then, if a collision occurs, the item being added
+// will take precedence over the existing item. Otherwise, the existing
+// item will take precedence
+func (m *IndexedMap[U, T]) Add(key U, value T, overwrite bool) {
+	m.ctrl.Lock()
+	defer m.ctrl.Unlock()
+	if index, ok := m.indexes[key]; ok && overwrite {
+		m.data[index] = value
+	} else if !ok {
+		m.indexes[key] = len(m.data)
+		m.data = append(m.data, value)
+	}
+}
+
+// Exists determines whether or not the key exists in the indexed map
+func (m *IndexedMap[U, T]) Exists(key U) bool {
+	m.ctrl.RLock()
+	defer m.ctrl.RUnlock()
+	_, ok := m.indexes[key]
+	return ok
+}
+
+// Get retrieves the item from the indexed list associated with the
+// key. True will be returned if the value was found, otherwise false
+// will be returned
+func (m *IndexedMap[U, T]) Get(key U) (T, bool) {
+	m.ctrl.RLock()
+	defer m.ctrl.RUnlock()
+
+	// First, attempt to get index associated with the key
+	index, ok := m.indexes[key]
+
+	// Next, if we don't have any index associated with the key then
+	// create an empty item and return it, and false
+	if !ok {
+		var empty T
+		return empty, false
+	}
+
+	// Finally, since we found the index then return the item
+	// associated with the index and true
+	return m.data[index], true
+}
+
+// Keys returns the collection of keys associated with the indexed map
+// as a slice, allowing for users to access the entire search space of
+// the collection
+func (m *IndexedMap[U, T]) Keys() []U {
+	m.ctrl.RLock()
+	defer m.ctrl.RUnlock()
+	keys := make([]U, 0)
+	for key := range m.indexes {
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+
+// Data returns the data associated with the indexed map as a slice,
+// allowing for users to access the data that was being stored
+func (m *IndexedMap[U, T]) Data() []T {
+	m.ctrl.RLock()
+	defer m.ctrl.RUnlock()
+	return m.data
+}
+
+// Length returns the number of elements in the indexed map
+func (m *IndexedMap[U, T]) Length() int {
+	m.ctrl.RLock()
+	defer m.ctrl.RUnlock()
+	return len(m.data)
+}
+
+// ForEach iterates over the entire indexed map and calls a function
+// for each key and associated value. If the function returns true,
+// the iteration will continue; otherwise, it will not
+func (m *IndexedMap[U, T]) ForEach(loopFunc func(U, T) bool) {
+	m.ctrl.RLock()
+	defer m.ctrl.RUnlock()
+	for key, i := range m.indexes {
+		if !loopFunc(key, m.data[i]) {
+			return
+		}
+	}
+}
