@@ -23,7 +23,7 @@ var _ = Describe("Common Tests", func() {
 		// Attempt to convert the list to a map; this should panic
 		list := []int{1, 24, 3, 5}
 		Expect(func() {
-			ToDictionary(nil, list, func(i int) string {
+			ToDictionary(nil, list, func(index int, i int) string {
 				return strconv.FormatInt(int64(i), 10)
 			}, true)
 		}).Should(Panic())
@@ -35,7 +35,7 @@ var _ = Describe("Common Tests", func() {
 
 		// Attempt to convert a nil list to a map; nothing should happen
 		mapping := make(map[string]int)
-		ToDictionary(mapping, nil, func(i int) string {
+		ToDictionary(mapping, nil, func(index int, i int) string {
 			return strconv.FormatInt(int64(i), 10)
 		}, true)
 
@@ -53,7 +53,7 @@ var _ = Describe("Common Tests", func() {
 
 		// Next, convert the list to a map
 		mapping := make(map[string]int)
-		ToDictionary(mapping, list, func(i int) string {
+		ToDictionary(mapping, list, func(index int, i int) string {
 			if i == 5 {
 				return "3"
 			}
@@ -79,7 +79,7 @@ var _ = Describe("Common Tests", func() {
 
 		// Next, convert the list to a map
 		mapping := make(map[string]int)
-		ToDictionary(mapping, list, func(i int) string {
+		ToDictionary(mapping, list, func(index int, i int) string {
 			if i == 5 {
 				return "3"
 			}
@@ -93,6 +93,84 @@ var _ = Describe("Common Tests", func() {
 		Expect(mapping["3"]).Should(Equal(3))
 		Expect(mapping["16"]).Should(Equal(16))
 		Expect(mapping["24"]).Should(Equal(24))
+	})
+
+	// Tests that calling ToDictionaryKeys with an empty map will result in a panic
+	It("ToDictionaryKeys - Map is nil - Panic", func() {
+
+		// Attempt to convert the list to a map; this should panic
+		list := []int{1, 24, 3, 5}
+		Expect(func() {
+			ToDictionaryKeys(nil, list, func(index int, i int) string {
+				return strconv.FormatInt(int64(i), 10)
+			}, true)
+		}).Should(Panic())
+	})
+
+	// Tests that calling ToDictionaryKeys with a nil list will
+	// result in no change to the map
+	It("ToDictionaryKeys - List is nil - No work done", func() {
+
+		// Attempt to convert a nil list to a map; nothing should happen
+		mapping := make(map[int]string)
+		ToDictionaryKeys(mapping, nil, func(index int, i int) string {
+			return strconv.FormatInt(int64(i), 10)
+		}, true)
+
+		// Verify that the map is still empty
+		Expect(mapping).Should(BeEmpty())
+	})
+
+	// Tests that, if the ToDictionaryKeys function is called with a list that
+	// contains elements resulting in collisions and that the overwrite
+	// flag is true, then the map will contain the newer value
+	It("ToDictionaryKeys - Overwrite true - Collisions overwritten", func() {
+
+		// First, create our test list
+		list := []int{1, 24, 3, 3, 16}
+
+		// Next, convert the list to a map
+		mapping := make(map[int]string)
+		ToDictionaryKeys(mapping, list, func(index int, i int) string {
+			if index == 3 {
+				return "5"
+			}
+
+			return strconv.FormatInt(int64(i), 10)
+		}, true)
+
+		// Finally, verify the values in the map
+		Expect(mapping).Should(HaveLen(4))
+		Expect(mapping[1]).Should(Equal("1"))
+		Expect(mapping[3]).Should(Equal("5"))
+		Expect(mapping[16]).Should(Equal("16"))
+		Expect(mapping[24]).Should(Equal("24"))
+	})
+
+	// Tests that, if the ToDictionaryKeys function is called with a list that
+	// contains elements resulting in collisions and that the overwrite
+	// flag is false, then the map will contain the older value
+	It("ToDictionaryKeys - Overwrite false - Collisions ignored", func() {
+
+		// First, create our test list
+		list := []int{1, 24, 3, 3, 16}
+
+		// Next, convert the list to a map
+		mapping := make(map[int]string)
+		ToDictionaryKeys(mapping, list, func(index int, i int) string {
+			if index == 3 {
+				return "5"
+			}
+
+			return strconv.FormatInt(int64(i), 10)
+		}, false)
+
+		// Finally, verify the values in the map
+		Expect(mapping).Should(HaveLen(4))
+		Expect(mapping[1]).Should(Equal("1"))
+		Expect(mapping[3]).Should(Equal("3"))
+		Expect(mapping[16]).Should(Equal("16"))
+		Expect(mapping[24]).Should(Equal("24"))
 	})
 
 	// Tests that, if the AsSlice function is called with no data, then an

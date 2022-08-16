@@ -3,17 +3,36 @@ package collections
 // ToDictionary converts a list of items to a map of items based on the output of
 // a function that gets a key from each item and a Boolean value that determines
 // whether conflicts should be overwritten
-func ToDictionary[T any, U comparable](mapping map[U]T, list []T, keyer func(T) U, overwrite bool) {
-	for _, item := range list {
+func ToDictionary[T any, U comparable](mapping map[U]T, list []T, keyer func(int, T) U, overwrite bool) {
+	for i, item := range list {
 
 		// Use the keyer to get a key from the item
-		key := keyer(item)
+		key := keyer(i, item)
 
 		// If the mapping already contains the item then we'll either
 		// ignore it, or if overwrite is true, we'll save the item to
 		// the map; otherwise, save the item anyway
 		if _, ok := mapping[key]; !ok || overwrite {
 			mapping[key] = item
+		}
+	}
+}
+
+// ToDictionaryKeys works similarly to the ToDictionary function except that, the list
+// provided will be used as the keys and the valuer function will be used to generate a
+// value for the map associated with the key. This can be useful when trying to index on
+// a struct property
+func ToDictionaryKeys[T comparable, U any](mapping map[T]U, list []T, valuer func(int, T) U, overwrite bool) {
+	for i, item := range list {
+
+		// Use the keyer to get a key from the item
+		value := valuer(i, item)
+
+		// If the mapping already contains the item then we'll either
+		// ignore it, or if overwrite is true, we'll save the item to
+		// the map; otherwise, save the item anyway
+		if _, ok := mapping[item]; !ok || overwrite {
+			mapping[item] = value
 		}
 	}
 }
