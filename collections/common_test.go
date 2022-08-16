@@ -17,6 +17,34 @@ func TestCollections(t *testing.T) {
 
 var _ = Describe("Common Tests", func() {
 
+	// Tests that the Keys function returns all the keys in the mapping
+	It("Keys - Works", func() {
+
+		// Create our test mapping
+		mapping := map[string]int{"A": 0, "B": 42, "C": -5}
+
+		// Get the keys from the mapping
+		keys := Keys(mapping)
+
+		// Verify the list of keys that was returned
+		Expect(keys).Should(HaveLen(3))
+		Expect(keys).Should(ConsistOf("A", "B", "C"))
+	})
+
+	// Tests that the Values function returns all the values in the mapping
+	It("Values - Works", func() {
+
+		// Create our test mapping
+		mapping := map[string]int{"A": 0, "B": 42, "C": -5}
+
+		// Get the values from the mapping
+		values := Values(mapping)
+
+		// Verify the list of values that was returned
+		Expect(values).Should(HaveLen(3))
+		Expect(values).Should(ConsistOf(0, 42, -5))
+	})
+
 	// Tests that calling ToDictionary with an empty map will result in a panic
 	It("ToDictionary - Map is nil - Panic", func() {
 

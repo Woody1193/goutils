@@ -1,5 +1,27 @@
 package collections
 
+// Keys extracts all the keys from a map and returns them as a slice.
+// This function makes no guarantees on ordering
+func Keys[T comparable, U any](mapping map[T]U) []T {
+	keys := make([]T, 0)
+	for key := range mapping {
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+
+// Values extracts all the values from a map and returns them as a slice.
+// This function makes no guarantees on ordering
+func Values[T comparable, U any](mapping map[T]U) []U {
+	values := make([]U, 0)
+	for _, value := range mapping {
+		values = append(values, value)
+	}
+
+	return values
+}
+
 // ToDictionary converts a list of items to a map of items based on the output of
 // a function that gets a key from each item and a Boolean value that determines
 // whether conflicts should be overwritten
