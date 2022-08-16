@@ -61,7 +61,7 @@ func NewLogger(service string, environment string, opts ...LoggerOption) *Logger
 	logger := Logger{
 		infoLog:     log.New(os.Stdout, "", log.LstdFlags),
 		errLog:      log.New(os.Stderr, "", log.LstdFlags),
-		errProvider: ErrorProvider{SkipFrames: 2, PackageBase: "Woody1193"},
+		errProvider: ErrorProvider{SkipFrames: 2, PackageBase: "goutils"},
 		Environment: environment,
 		Prefix:      fmt.Sprintf("[%s][%s] ", environment, service),
 	}

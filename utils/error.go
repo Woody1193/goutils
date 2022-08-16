@@ -20,7 +20,7 @@ type ErrorProvider struct {
 
 // DefaultErrorProvider contains the default settings to use when
 // generating errors
-var DefaultErrorProvider = ErrorProvider{SkipFrames: 2, PackageBase: "Woody1193"}
+var DefaultErrorProvider = ErrorProvider{SkipFrames: 2, PackageBase: "goutils"}
 
 // GError contains information necessary to represent an error. We use the
 // value GError instead of Error so, if it is embedded into another type, it
@@ -62,7 +62,7 @@ func (provider ErrorProvider) GenerateError(env string, inner error,
 	// strip off anything that's not really necessary to describe the file
 	splitFile := strings.SplitAfter(file, provider.PackageBase)
 	if len(splitFile) > 1 {
-		file = strings.Join(splitFile[1:], provider.PackageBase)
+		file = fmt.Sprintf("/%s%s", provider.PackageBase, strings.Join(splitFile[1:], provider.PackageBase))
 	}
 
 	// Next, get the name of the function that was associated with the caller
