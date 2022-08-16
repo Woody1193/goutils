@@ -62,7 +62,7 @@ func (provider ErrorProvider) GenerateError(env string, inner error,
 	// strip off anything that's not really necessary to describe the file
 	splitFile := strings.SplitAfter(file, provider.PackageBase)
 	if len(splitFile) > 1 {
-		file = fmt.Sprintf("/%s%s", provider.PackageBase, strings.Join(splitFile[1:], provider.PackageBase))
+		file = fmt.Sprintf("/%s%s", provider.PackageBase, splitFile[len(splitFile)-1])
 	}
 
 	// Next, get the name of the function that was associated with the caller
