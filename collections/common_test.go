@@ -173,6 +173,59 @@ var _ = Describe("Common Tests", func() {
 		Expect(mapping[24]).Should(Equal("24"))
 	})
 
+	// Tests that calling Index with a nil list will result in no change to the map
+	It("Index - List is nil - No work done", func() {
+		mapping := Index[string](nil)
+		Expect(mapping).Should(BeEmpty())
+	})
+
+	// Tests that, if the Index function is called with a list that contains elements
+	// will result in an index mapping being returned for that list
+	It("Index - List not empty - Converted", func() {
+
+		// First, create our test list
+		list := []int{1, 24, 3, 16}
+
+		// Next, convert the list to a map
+		mapping := Index(list)
+
+		// Finally, verify the values in the map
+		Expect(mapping).Should(HaveLen(4))
+		for i, item := range list {
+			Expect(mapping[item]).Should(Equal(i))
+		}
+	})
+
+	// Tests that calling IndexWithFunction with a nil list will result in an emtpy map
+	It("IndexWithFunction - List is nil - No work done", func() {
+		mapping := IndexWithFunction(nil, func(i int) string {
+			return strconv.FormatInt(int64(i), 10)
+		})
+
+		Expect(mapping).Should(BeEmpty())
+	})
+
+	// Tests that, if the IndexWithFunction is called with a list that contains elements
+	// then a mapping will be returned with the converted items as keys and the index of
+	// the original items as values
+	It("IndexWithFunction - List not empty - Converted", func() {
+
+		// First, create our test list
+		list := []int{1, 24, 3, 16}
+
+		// Next, convert the list to a map
+		mapping := IndexWithFunction(list, func(i int) string {
+			return strconv.FormatInt(int64(i), 16)
+		})
+
+		// Verify the state of the mapping
+		Expect(mapping).Should(HaveLen(4))
+		Expect(mapping["1"]).Should(Equal(0))
+		Expect(mapping["18"]).Should(Equal(1))
+		Expect(mapping["3"]).Should(Equal(2))
+		Expect(mapping["10"]).Should(Equal(3))
+	})
+
 	// Tests that, if the AsSlice function is called with no data, then an
 	// empty list will be returned
 	It("AsSlice - No data provided - Empty list returned", func() {
