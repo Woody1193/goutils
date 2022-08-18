@@ -32,7 +32,8 @@ var _ = Describe("Fields Tests", func() {
 			verifyField("IntType", "int",
 				tagVerifier("json", "int_type,omitempty", "int_type", "omitempty")),
 			verifyField("FloatType", "float64",
-				tagVerifier("sql", "float_type,omitempty", "float_type", "omitempty")))
+				tagVerifier("sql", "float_type,omitempty", "float_type", "omitempty")),
+			verifyField("UntaggedType", "string"))
 
 		// Now, attempt to verify the data in the cache
 		total := 0
@@ -51,7 +52,8 @@ var _ = Describe("Fields Tests", func() {
 				verifyField("IntType", "int",
 					tagVerifier("json", "int_type,omitempty", "int_type", "omitempty")),
 				verifyField("FloatType", "float64",
-					tagVerifier("sql", "float_type,omitempty", "float_type", "omitempty")))
+					tagVerifier("sql", "float_type,omitempty", "float_type", "omitempty")),
+				verifyField("UntaggedType", "string"))
 			return true
 		})
 
@@ -95,9 +97,10 @@ var _ = Describe("Fields Tests", func() {
 
 // Fake type we'll use for testing reflection library
 type testStruct struct {
-	StringType string  `json:"string_type" sql:"STR_TYPE"`
-	IntType    int     `json:"int_type,omitempty"`
-	FloatType  float64 `sql:"float_type,omitempty"`
+	StringType   string  `json:"string_type" sql:"STR_TYPE"`
+	IntType      int     `json:"int_type,omitempty"`
+	FloatType    float64 `sql:"float_type,omitempty"`
+	UntaggedType string
 }
 
 // Helper function that verifies the fields on a TypeInfo object

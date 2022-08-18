@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
+	wstr "github.com/Woody1193/goutils/strings"
 )
 
 // Cache containing concurrency-safe field info for each type examined
@@ -55,6 +57,11 @@ func GetTypeInfo[T any]() *TypeInfo {
 		fields[i] = &FieldInfo{
 			StructField: tType.Field(i),
 			Tags:        make(map[string]*TagInfo),
+		}
+
+		// Check if the tag is empty; if it is then there's nothing more to do here so continue
+		if wstr.IsEmpty(fields[i].Tag) {
+			continue
 		}
 
 		// Next, split the tag into groups by the space character (this is the typical value)
