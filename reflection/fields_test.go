@@ -19,20 +19,20 @@ func TestReflection(t *testing.T) {
 var _ = Describe("Fields Tests", func() {
 
 	// Tests that the GetFieldInfo function works as expected when the value is not cached
-	It("GetFieldInfo - Not cached - Works", func() {
+	It("GetTypeInfo - Not cached - Works", func() {
 
 		// First, get the field info for the type
-		fields := GetFieldInfo[testStruct]()
+		info := GetTypeInfo[testStruct]()
 
 		// Next, verify the FieldInfo that were returned
-		Expect(fields).Should(HaveLen(3))
-		verifyField(fields[0], "StringType", "string",
-			tagVerifier("json", "string_type", "string_type"),
-			tagVerifier("sql", "STR_TYPE", "STR_TYPE"))
-		verifyField(fields[1], "IntType", "int",
-			tagVerifier("json", "int_type,omitempty", "int_type", "omitempty"))
-		verifyField(fields[2], "FloatType", "float64",
-			tagVerifier("sql", "float_type,omitempty", "float_type", "omitempty"))
+		verifyType(info, "testStruct", "reflection",
+			verifyField("StringType", "string",
+				tagVerifier("json", "string_type", "string_type"),
+				tagVerifier("sql", "STR_TYPE", "STR_TYPE")),
+			verifyField("IntType", "int",
+				tagVerifier("json", "int_type,omitempty", "int_type", "omitempty")),
+			verifyField("FloatType", "float64",
+				tagVerifier("sql", "float_type,omitempty", "float_type", "omitempty")))
 
 		// Now, attempt to verify the data in the cache
 		total := 0
@@ -43,15 +43,15 @@ var _ = Describe("Fields Tests", func() {
 			Expect(rawKey).Should(HaveSuffix("reflection.testStruct"))
 
 			// Verify that the data has the value we expect
-			fields := rawValue.([]*FieldInfo)
-			Expect(fields).Should(HaveLen(3))
-			verifyField(fields[0], "StringType", "string",
-				tagVerifier("json", "string_type", "string_type"),
-				tagVerifier("sql", "STR_TYPE", "STR_TYPE"))
-			verifyField(fields[1], "IntType", "int",
-				tagVerifier("json", "int_type,omitempty", "int_type", "omitempty"))
-			verifyField(fields[2], "FloatType", "float64",
-				tagVerifier("sql", "float_type,omitempty", "float_type", "omitempty"))
+			info := rawValue.(*TypeInfo)
+			verifyType(info, "testStruct", "reflection",
+				verifyField("StringType", "string",
+					tagVerifier("json", "string_type", "string_type"),
+					tagVerifier("sql", "STR_TYPE", "STR_TYPE")),
+				verifyField("IntType", "int",
+					tagVerifier("json", "int_type,omitempty", "int_type", "omitempty")),
+				verifyField("FloatType", "float64",
+					tagVerifier("sql", "float_type,omitempty", "float_type", "omitempty")))
 			return true
 		})
 
@@ -65,25 +65,31 @@ var _ = Describe("Fields Tests", func() {
 
 		// First, create fake field info values and add them to the cache
 		typ := reflect.TypeOf(*new(testStruct))
-		fieldsCache.Store(fmt.Sprintf("%s.%s", typ.PkgPath(), typ.Name()), []*FieldInfo{
-			{
-				Tags: map[string]*TagInfo{
-					"fake": {
-						Raw:       "fake_raw",
-						Name:      "fake_name",
-						Modifiers: []string{"fake_modifiers"},
+		fieldsCache.Store(fmt.Sprintf("%s.%s", typ.PkgPath(), typ.Name()), &TypeInfo{
+			Name: "fake",
+			Path: "fake/path",
+			Fields: []*FieldInfo{
+				{
+					Tags: map[string]*TagInfo{
+						"fake": {
+							Raw:       "fake_raw",
+							Name:      "fake_name",
+							Modifiers: []string{"fake_modifiers"},
+						},
 					},
 				},
 			},
 		})
 
 		// Next, get the field info for the type
-		fields := GetFieldInfo[testStruct]()
+		info := GetTypeInfo[testStruct]()
 
 		// Finally, verify that the returned value is our fake value
-		Expect(fields).Should(HaveLen(1))
-		Expect(fields[0].Tags).Should(HaveLen(1))
-		tagVerifier("fake", "fake_raw", "fake_name", "fake_modifiers")(fields[0].Tags)
+		Expect(info.Name).Should(Equal("fake"))
+		Expect(info.Path).Should(Equal("fake/path"))
+		Expect(info.Fields).Should(HaveLen(1))
+		Expect(info.Fields[0].Tags).Should(HaveLen(1))
+		tagVerifier("fake", "fake_raw", "fake_name", "fake_modifiers")(info.Fields[0].Tags)
 	})
 })
 
@@ -94,14 +100,25 @@ type testStruct struct {
 	FloatType  float64 `sql:"float_type,omitempty"`
 }
 
+// Helper function that verifies the fields on a TypeInfo object
+func verifyType(info *TypeInfo, name string, pathSuffix string, fieldVerifiers ...func(*FieldInfo)) {
+	Expect(info.Name).Should(Equal(name))
+	Expect(info.Path).Should(HaveSuffix(pathSuffix))
+	Expect(info.Fields).Should(HaveLen(len(fieldVerifiers)))
+	for i, field := range info.Fields {
+		fieldVerifiers[i](field)
+	}
+}
+
 // Helper function that verifies the fields on a FieldInfo object
-func verifyField(field *FieldInfo, fieldName string, typeName string,
-	tagVerifiers ...func(map[string]*TagInfo)) {
-	Expect(field.Name).Should(Equal(fieldName))
-	Expect(field.Type.Name()).Should(Equal(typeName))
-	Expect(field.Tags).Should(HaveLen(len(tagVerifiers)))
-	for _, verifier := range tagVerifiers {
-		verifier(field.Tags)
+func verifyField(fieldName string, typeName string, tagVerifiers ...func(map[string]*TagInfo)) func(*FieldInfo) {
+	return func(field *FieldInfo) {
+		Expect(field.Name).Should(Equal(fieldName))
+		Expect(field.Type.Name()).Should(Equal(typeName))
+		Expect(field.Tags).Should(HaveLen(len(tagVerifiers)))
+		for _, verifier := range tagVerifiers {
+			verifier(field.Tags)
+		}
 	}
 }
 

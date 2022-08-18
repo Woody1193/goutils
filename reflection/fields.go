@@ -10,6 +10,12 @@ import (
 // Cache containing concurrency-safe field info for each type examined
 var fieldsCache = new(sync.Map)
 
+type TypeInfo struct {
+	Name   string
+	Path   string
+	Fields []*FieldInfo
+}
+
 // FieldInfo contains information concerning a single field on a struct
 type FieldInfo struct {
 	reflect.StructField
@@ -23,20 +29,21 @@ type TagInfo struct {
 	Modifiers []string
 }
 
-// GetFieldInfo retrieves the field info on the type submitted to the function. A list of FieldInfo
+// GetTypeInfo retrieves information on the type submitted to the function. A list of FieldInfo
 // objects will be returned, where each contains the SructField for the associated field along with a
 // mapping of tag names to their values. This list will be ordered in the same way as the fields.
 // Additionally, the field into will be cached so that subsequent accesses do not incur additional costs
-func GetFieldInfo[T any]() []*FieldInfo {
+func GetTypeInfo[T any]() *TypeInfo {
 
-	// First, get the reflected type for the type and its name
+	// First, get the reflected type, its package path and name
 	tType := reflect.TypeOf(*new(T))
-	typeName := fmt.Sprintf("%s.%s", tType.PkgPath(), tType.Name())
-	fmt.Printf("Type: %s\n", typeName)
+	pkg := tType.PkgPath()
+	name := tType.Name()
 
 	// Next, check if we've already looked at this type; if we have then return its associated field info
+	typeName := fmt.Sprintf("%s.%s", tType.PkgPath(), tType.Name())
 	if raw, ok := fieldsCache.Load(typeName); ok {
-		return raw.([]*FieldInfo)
+		return raw.(*TypeInfo)
 	}
 
 	// Now, iterate over all the fields on the type and extract the info for each
@@ -79,7 +86,14 @@ func GetFieldInfo[T any]() []*FieldInfo {
 		}
 	}
 
-	// Finally, store the fields in the cache with the type name and return them
-	fieldsCache.Store(typeName, fields)
-	return fields
+	// Finally, inject the name, package path and fields into a new type info object
+	info := &TypeInfo{
+		Name:   name,
+		Path:   pkg,
+		Fields: fields,
+	}
+
+	// Store the info object in the cache with the type name and return it
+	fieldsCache.Store(typeName, info)
+	return info
 }
