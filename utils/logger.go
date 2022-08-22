@@ -101,7 +101,8 @@ func (logger *Logger) Log(message string, args ...interface{}) {
 // resulting error will be returned for use by the caller
 func (logger *Logger) Error(inner error, message string, args ...interface{}) *GError {
 	err := logger.errProvider.GenerateError(logger.Environment, inner, message, args...)
-	logger.errLog.Printf("[Error]%s%v", logger.Prefix, err)
+	msg := "[Error]" + logger.Prefix + err.Error()
+	logger.errLog.Println(msg)
 	return err
 }
 

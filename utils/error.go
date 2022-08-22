@@ -114,8 +114,8 @@ func (err *GError) Error() string {
 	}
 
 	// Next, create the base message from the error data
-	baseMsg := fmt.Sprintf("%s [%s] %s (%s %d): %s", err.GeneratedAt, err.Environment, fullyQualifiedName,
-		err.File, err.LineNumber, err.Message)
+	baseMsg := fmt.Sprintf("%s [%s] %s (%s %d): ", err.GeneratedAt, err.Environment, fullyQualifiedName,
+		err.File, err.LineNumber) + err.Message
 
 	// Finally, if the inner error isn't nil then add it to the error
 	// message; otherwise, just add a period
