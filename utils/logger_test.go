@@ -68,6 +68,27 @@ var _ = Describe("Logger Tests", func() {
 			"String parameter: derp, Integer parameter: 42\n"))
 	})
 
+	// Tests that, even if one of the message paramters contains a control character, that
+	// character will be printed as-is in the log
+	It("Log - Message contains control character - Works", func() {
+
+		// First, create our logger from a test service with a test environment
+		logger := NewLogger("testd", "test")
+
+		// Next, create a buffer and set the output to it so we can extract messages
+		// from our logger
+		buf := new(bytes.Buffer)
+		logger.infoLog.SetOutput(buf)
+
+		// Now, log a message where one of the parameters contains a control character
+		logger.Log("Test message. String parameter: %q", "test %t.derp")
+
+		// Finally, extract the data from the buffer and verify the value of the message
+		data := string(buf.Bytes())
+		Expect(data).Should(HaveSuffix("[Info][test][testd] Test message. " +
+			"String parameter: \"test %t.derp\"\n"))
+	})
+
 	// Tests that logging an error works as expected
 	It("Error - Works", func() {
 
@@ -85,7 +106,7 @@ var _ = Describe("Logger Tests", func() {
 
 		// Finally, extract the data from the buffer and verify the value of the message
 		data := string(buf.Bytes())
-		Expect(data).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 83): " +
+		Expect(data).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 104): " +
 			"Test message. String parameter: derp, Integer parameter: 42, Inner: Test error.\n"))
 
 		// Verify the data in the error
@@ -96,10 +117,10 @@ var _ = Describe("Logger Tests", func() {
 		Expect(err.GeneratedAt).ShouldNot(BeNil())
 		Expect(err.Inner).Should(HaveOccurred())
 		Expect(err.Inner.Error()).Should(Equal("Test error"))
-		Expect(err.LineNumber).Should(Equal(83))
+		Expect(err.LineNumber).Should(Equal(104))
 		Expect(err.Message).Should(Equal("Test message. String parameter: derp, Integer parameter: 42"))
 		Expect(err.Package).Should(Equal("utils"))
-		Expect(err.Error()).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 83): " +
+		Expect(err.Error()).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 104): " +
 			"Test message. String parameter: derp, Integer parameter: 42, Inner: Test error."))
 	})
 
@@ -131,10 +152,10 @@ var _ = Describe("Logger Tests", func() {
 		Expect(err.GeneratedAt).ShouldNot(BeNil())
 		Expect(err.Inner).Should(HaveOccurred())
 		Expect(err.Inner.Error()).Should(Equal("Test error"))
-		Expect(err.LineNumber).Should(Equal(122))
+		Expect(err.LineNumber).Should(Equal(143))
 		Expect(err.Message).Should(Equal("Test message. String parameter: derp, Integer parameter: 42"))
 		Expect(err.Package).Should(Equal("utils"))
-		Expect(err.Error()).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 122): " +
+		Expect(err.Error()).Should(HaveSuffix("[test] utils.glob. (/goutils/utils/logger_test.go 143): " +
 			"Test message. String parameter: derp, Integer parameter: 42, Inner: Test error."))
 	})
 })

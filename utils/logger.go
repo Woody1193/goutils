@@ -93,7 +93,8 @@ func (logger *Logger) ChangeFrame(skipFrames int) *Logger {
 
 // Log a message to the standard output
 func (logger *Logger) Log(message string, args ...interface{}) {
-	logger.infoLog.Printf(fmt.Sprintf("[Info]%s%s", logger.Prefix, fmt.Sprintf(message, args...)))
+	msg := "[Info]" + logger.Prefix + fmt.Sprintf(message, args...)
+	logger.infoLog.Println(msg)
 }
 
 // Generate and log an error from the inner error and message. The
