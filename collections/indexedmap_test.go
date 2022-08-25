@@ -114,6 +114,53 @@ var _ = Describe("Indexed Map Tests", func() {
 		Expect(found).Should(BeTrue())
 	})
 
+	// Tests that, if the Remove function is called with a key that is
+	// not associated with any item in the list, then false will be returned
+	It("Remove - Not found - False returned", func() {
+
+		// First, create a new indexed map
+		dict := NewIndexedMap[string, int]()
+
+		// Next, add some entries to the map
+		dict.Add("derp", 1, false)
+		dict.Add("herp", 2, false)
+		dict.Add("sherbert", 3, false)
+
+		// Now, attempt to remove an item from the map that
+		// is not associated with any key in the map
+		found := dict.Remove("rainbow")
+
+		// Finally, verify that the item wasn't found
+		Expect(found).Should(BeFalse())
+	})
+
+	// Tests that, if the Remove function is called with a key that is
+	// associated with an item in the list, then true will be returned and
+	// the item will be removed from the list
+	It("Remove - Found - Removed", func() {
+
+		// First, create a new indexed map
+		dict := NewIndexedMap[string, int]()
+
+		// Next, add some entries to the map
+		dict.Add("derp", 1, false)
+		dict.Add("herp", 2, false)
+		dict.Add("sherbert", 3, false)
+
+		// Now, attempt to remove an item from the map that
+		// is associated with one of the keys in the map
+		found := dict.Remove("herp")
+		Expect(found).Should(BeTrue())
+
+		// Finally, verify the data in the indexed dictionary
+		Expect(dict.indexes).Should(HaveLen(2))
+		Expect(dict.indexes).Should(HaveKey("derp"))
+		Expect(dict.indexes["derp"]).Should(Equal(0))
+		Expect(dict.indexes).Should(HaveKey("sherbert"))
+		Expect(dict.indexes["sherbert"]).Should(Equal(1))
+		Expect(dict.data).Should(Equal([]int{1, 3}))
+	})
+
 	// Tests that calling the Keys function will return all the keys
 	// associated with entries in the dictionary
 	It("Keys - Works", func() {
