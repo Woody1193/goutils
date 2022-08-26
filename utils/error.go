@@ -132,7 +132,7 @@ func (err *GError) Error() string {
 type AggregateError []error
 
 // FromErrors creates a new AggregateError from
-func FromErrors(errs ...error) AggregateError {
+func FromErrors(errs ...error) error {
 	if len(errs) > 0 {
 		err := AggregateError(errs)
 		return err
