@@ -25,9 +25,17 @@ func NewIndexedMap[U comparable, T any]() *IndexedMap[U, T] {
 // item will take precedence. This operation may be O(1) unless the
 // underlying list needs to be resized, in which case it will be O(N)
 func (m *IndexedMap[U, T]) Add(key U, value T, overwrite bool) {
+	m.AddIf(key, value, func(T, T) bool { return overwrite })
+}
+
+// AddIf adds a new key and value to the indexed map. If a collision
+// occurs, then the onCollision function will be called with the existing
+// item and item to be added. If it returns true then the existing item
+// will be overwritten and otherwise it will be ignored.
+func (m *IndexedMap[U, T]) AddIf(key U, value T, onCollision func(T, T) bool) {
 	m.ctrl.Lock()
 	defer m.ctrl.Unlock()
-	if index, ok := m.indexes[key]; ok && overwrite {
+	if index, ok := m.indexes[key]; ok && onCollision(m.data[index], value) {
 		m.data[index] = value
 	} else if !ok {
 		m.indexes[key] = len(m.data)
