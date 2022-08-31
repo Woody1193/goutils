@@ -260,12 +260,37 @@ var _ = Describe("Concurrent List Tests", func() {
 
 		// Create a new list
 		list := NewConcurrentList(1, 2, 4, 5, 8, 10)
+		Expect(list.data).Should(HaveLen(6))
+		Expect(list.data).Should(HaveCap(6))
 
 		// Remove the first N items from the list
 		items := list.PopFront(3)
 
 		// Verify that the data is removed from the list and returned
 		Expect(list.Length()).Should(Equal(uint(3)))
+		Expect(list.data).Should(HaveLen(3))
+		Expect(list.data).Should(HaveCap(6))
+		Expect(list.data).Should(Equal([]int{5, 8, 10}))
+		Expect(items).Should(HaveLen(3))
+		Expect(items).Should(Equal([]int{1, 2, 4}))
+	})
+
+	// Test that, if the list is resize-enabled and requesting that data be popped
+	// returns more than half the list, then the capacity will be reduced
+	It("PopFront - Resize-enabled, Resize requested - Resized", func() {
+
+		// Create a new list
+		list := NewConcurrentList(1, 2, 4, 5, 8, 10).WithResize()
+		Expect(list.data).Should(HaveLen(6))
+		Expect(list.data).Should(HaveCap(6))
+
+		// Remove the first N items from the list
+		items := list.PopFront(3)
+
+		// Verify that the data is removed from the list and returned
+		Expect(list.Length()).Should(Equal(uint(3)))
+		Expect(list.data).Should(HaveLen(3))
+		Expect(list.data).Should(HaveCap(3))
 		Expect(list.data).Should(Equal([]int{5, 8, 10}))
 		Expect(items).Should(HaveLen(3))
 		Expect(items).Should(Equal([]int{1, 2, 4}))

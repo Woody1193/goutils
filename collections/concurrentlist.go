@@ -1,11 +1,14 @@
 package collections
 
-import "sync"
+import (
+	"sync"
+)
 
 // ConcurrentList is a list structure that is thread-safe
 type ConcurrentList[T any] struct {
-	data []T
-	ctrl *sync.RWMutex
+	data   []T
+	resize bool
+	ctrl   *sync.RWMutex
 }
 
 // NewConcurrentList creates a new concurrent list from an existing
@@ -15,6 +18,17 @@ func NewConcurrentList[T any](items ...T) *ConcurrentList[T] {
 		data: items,
 		ctrl: new(sync.RWMutex),
 	}
+}
+
+// WithResize modifies the list, allowing it to dynamically resize in cases
+// where the capacity is larger than the length (this will likely only be
+// useful in cases of extremely large datasets). This function returns the
+// modified list object so that it can be chained with other modifiers
+func (list *ConcurrentList[T]) WithResize() *ConcurrentList[T] {
+	list.ctrl.Lock()
+	defer list.ctrl.Unlock()
+	list.resize = true
+	return list
 }
 
 // Length returns the number of items in the list
@@ -76,6 +90,7 @@ func (list *ConcurrentList[T]) RemoveAt(index uint) T {
 	defer list.ctrl.Unlock()
 	item := list.data[index]
 	list.data = append(list.data[:index], list.data[index+1:]...)
+	list.doResize()
 	return item
 }
 
@@ -86,5 +101,16 @@ func (list *ConcurrentList[T]) PopFront(n uint) []T {
 	defer list.ctrl.Unlock()
 	items := list.data[:n]
 	list.data = list.data[n:]
+	list.doResize()
 	return items
+}
+
+// Helper function that resizes the data list if its capacity has
+// grown too large to preserve memory in the case of large lists
+func (list *ConcurrentList[T]) doResize() {
+	if list.resize && cap(list.data)>>1 > len(list.data) {
+		temp := make([]T, len(list.data))
+		copy(temp, list.data)
+		list.data = temp
+	}
 }
