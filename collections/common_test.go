@@ -295,4 +295,24 @@ var _ = Describe("Common Tests", func() {
 		Expect(list).Should(HaveLen(4))
 		Expect(list).Should(Equal([]string{"1", "2", "3", "10"}))
 	})
+
+	// Tests the conditions describing how the Contains function will operate
+	DescribeTable("Contains - Conditions",
+		func(list []int, value int, found bool) {
+			Expect(Contains(list, value)).Should(Equal(found))
+		},
+		Entry("List is nil - False", nil, 42, false),
+		Entry("Value not in list - False", []int{1, 2, 4, 8, 16}, 42, false),
+		Entry("Value in list - True", []int{2, 10, 42, 99, 420}, 42, true))
+
+	// Tests the conditions describing how the ContainsFunc function will operate
+	DescribeTable("ContainsFunc - Conditions",
+		func(list []int, found bool) {
+			Expect(ContainsFunc(list, func(i int) bool {
+				return i%42 == 1
+			})).Should(Equal(found))
+		},
+		Entry("List is nil - False", nil, false),
+		Entry("Checker returns false for all items - False", []int{0, 2, 41, 42, 83}, false),
+		Entry("Checker returns true for one item - True", []int{0, 2, 41, 42, 43, 83}, true))
 })

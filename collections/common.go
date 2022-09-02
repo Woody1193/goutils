@@ -97,3 +97,26 @@ func Convert[T any, U any](converter func(T) U, data ...T) []U {
 
 	return converted
 }
+
+// Contains checks whether or not the value provided exists in list. This
+// function will return true if it does, or false if it doesn't
+func Contains[T comparable](list []T, value T) bool {
+	for _, item := range list {
+		if item == value {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ContainsFunc checkes whether or not any item in the
+func ContainsFunc[T any](list []T, check func(T) bool) bool {
+	for _, item := range list {
+		if check(item) {
+			return true
+		}
+	}
+
+	return false
+}
