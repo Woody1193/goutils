@@ -31,7 +31,7 @@ var _ = Describe("WebClient Tests", func() {
 		logger.Discard()
 
 		// Next, inject the logger and API key into our client
-		client := NewWebClient(func(data []byte) string { return "TEST ERROR" }, logger)
+		client := NewWebClient(func(client *WebClient, data []byte) string { return "TEST ERROR" }, logger)
 
 		// Finally, verify that the client was created
 		Expect(client.startInterval).Should(Equal(time.Duration(500)))
@@ -486,7 +486,7 @@ var _ = Describe("WebClient Tests", func() {
 func generateClient(client *http.Client) *WebClient {
 	logger := utils.NewLogger("testd", "test")
 	logger.Discard()
-	pClient := WithClient(client, func(data []byte) string { return "TEST ERROR" }, logger)
+	pClient := WithClient(client, func(client *WebClient, data []byte) string { return "TEST ERROR" }, logger)
 	pClient.startInterval = 1
 	pClient.endInterval = 5
 	pClient.maxElapsed = 10

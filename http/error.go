@@ -34,7 +34,7 @@ func (client *WebClient) FromHTTPResponse(err error, resp *http.Response) *Error
 		// be in the error field or in the message field
 		var inner string
 		if data, bErr := client.GetBody(resp.Body); bErr == nil {
-			inner = client.errorHandler(data)
+			inner = client.errorHandler(client, data)
 		}
 
 		// Next, if we managed to extract the inner message then add an

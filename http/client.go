@@ -23,12 +23,12 @@ type WebClient struct {
 	endInterval   time.Duration
 	maxElapsed    time.Duration
 	client        *http.Client
-	errorHandler  func([]byte) string
+	errorHandler  func(*WebClient, []byte) string
 	logger        *utils.Logger
 }
 
 // NewWebClient creates a new connection to an API
-func NewWebClient(errorHandler func([]byte) string, logger *utils.Logger) *WebClient {
+func NewWebClient(errorHandler func(*WebClient, []byte) string, logger *utils.Logger) *WebClient {
 	return &WebClient{
 		startInterval: 500,
 		endInterval:   60000,
@@ -40,7 +40,7 @@ func NewWebClient(errorHandler func([]byte) string, logger *utils.Logger) *WebCl
 }
 
 // WithClient creates a new connection to the API with a given HTTP client
-func WithClient(client *http.Client, errorHandler func([]byte) string,
+func WithClient(client *http.Client, errorHandler func(*WebClient, []byte) string,
 	logger *utils.Logger) *WebClient {
 	return &WebClient{
 		startInterval: 500,
