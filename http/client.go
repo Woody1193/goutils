@@ -18,38 +18,43 @@ import (
 var retryCodes = []int{http.StatusBadGateway, http.StatusRequestTimeout,
 	http.StatusConflict, http.StatusTooManyRequests}
 
+// WebClient defines an HTTP client that can be used to handle typical JSON responses from an API
 type WebClient struct {
+	client        *http.Client
 	startInterval time.Duration
 	endInterval   time.Duration
 	maxElapsed    time.Duration
-	client        *http.Client
+	retryCodes    []int
 	errorHandler  func(*WebClient, []byte) string
 	logger        *utils.Logger
 }
 
 // NewWebClient creates a new connection to an API
-func NewWebClient(errorHandler func(*WebClient, []byte) string, logger *utils.Logger) *WebClient {
-	return &WebClient{
-		startInterval: 500,
-		endInterval:   60000,
-		maxElapsed:    900000,
-		client:        new(http.Client),
-		errorHandler:  errorHandler,
-		logger:        logger.ChangeFrame(3),
-	}
+func NewWebClient(logger *utils.Logger, opts ...IWebClientOption) *WebClient {
+	return WithClient(new(http.Client), logger, opts...)
 }
 
 // WithClient creates a new connection to the API with a given HTTP client
-func WithClient(client *http.Client, errorHandler func(*WebClient, []byte) string,
-	logger *utils.Logger) *WebClient {
-	return &WebClient{
+func WithClient(client *http.Client, logger *utils.Logger, opts ...IWebClientOption) *WebClient {
+
+	// First, create the web client with our default values
+	wc := WebClient{
+		client:        client,
 		startInterval: 500,
 		endInterval:   60000,
 		maxElapsed:    900000,
-		client:        client,
-		errorHandler:  errorHandler,
+		retryCodes:    retryCodes,
+		errorHandler:  nil,
 		logger:        logger.ChangeFrame(3),
 	}
+
+	// Next, call each of our options to modify the client
+	for _, opt := range opts {
+		opt.Apply(&wc)
+	}
+
+	// Finally, return a pointer to the client
+	return &wc
 }
 
 // GetData attempts to run an HTTP request against an endpoint and deserialize the respone into the object provided

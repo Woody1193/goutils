@@ -31,7 +31,7 @@ var _ = Describe("WebClient Tests", func() {
 		logger.Discard()
 
 		// Next, inject the logger and API key into our client
-		client := NewWebClient(func(client *WebClient, data []byte) string { return "TEST ERROR" }, logger)
+		client := NewWebClient(logger)
 
 		// Finally, verify that the client was created
 		Expect(client.startInterval).Should(Equal(time.Duration(500)))
@@ -70,11 +70,11 @@ var _ = Describe("WebClient Tests", func() {
 		Expect(actual.GeneratedAt).ShouldNot(BeNil())
 		Expect(actual.Inner).Should(HaveOccurred())
 		Expect(actual.Inner.Error()).Should(Equal("Get \"test.url/fails\": RoundTrip failed"))
-		Expect(actual.LineNumber).Should(Equal(110))
+		Expect(actual.LineNumber).Should(Equal(115))
 		Expect(actual.Message).Should(Equal("API request failed; no response received"))
 		Expect(actual.Package).Should(Equal("http"))
 		Expect(actual.StatusCode).Should(BeZero())
-		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.DoRequest (/goutils/http/client.go 110): " +
+		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.DoRequest (/goutils/http/client.go 115): " +
 			"API request failed; no response received, Inner: Get \"test.url/fails\": RoundTrip failed."))
 	})
 
@@ -112,12 +112,12 @@ var _ = Describe("WebClient Tests", func() {
 		Expect(actual.GeneratedAt).ShouldNot(BeNil())
 		Expect(actual.Inner).Should(HaveOccurred())
 		Expect(actual.Inner.Error()).Should(Equal("maximum retry count exceeded"))
-		Expect(actual.LineNumber).Should(Equal(110))
+		Expect(actual.LineNumber).Should(Equal(115))
 		Expect(actual.Message).Should(Equal("API request to test.url/fails failed, " +
 			"Continue response returned, Inner Error: TEST ERROR"))
 		Expect(actual.Package).Should(Equal("http"))
 		Expect(actual.StatusCode).Should(Equal(100))
-		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.DoRequest (/goutils/http/client.go 110): " +
+		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.DoRequest (/goutils/http/client.go 115): " +
 			"API request to test.url/fails failed, Continue response returned, Inner Error: TEST ERROR, " +
 			"Inner: maximum retry count exceeded."))
 	})
@@ -156,12 +156,12 @@ var _ = Describe("WebClient Tests", func() {
 		Expect(actual.GeneratedAt).ShouldNot(BeNil())
 		Expect(actual.Inner).Should(HaveOccurred())
 		Expect(actual.Inner.Error()).Should(Equal("maximum retry count exceeded"))
-		Expect(actual.LineNumber).Should(Equal(110))
+		Expect(actual.LineNumber).Should(Equal(115))
 		Expect(actual.Message).Should(Equal("API request to test.url/fails failed, " +
 			"Multiple Choices response returned, Inner Error: TEST ERROR"))
 		Expect(actual.Package).Should(Equal("http"))
 		Expect(actual.StatusCode).Should(Equal(300))
-		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.DoRequest (/goutils/http/client.go 110): " +
+		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.DoRequest (/goutils/http/client.go 115): " +
 			"API request to test.url/fails failed, Multiple Choices response returned, Inner Error: TEST ERROR, " +
 			"Inner: maximum retry count exceeded."))
 	})
@@ -198,12 +198,12 @@ var _ = Describe("WebClient Tests", func() {
 		Expect(actual.GeneratedAt).ShouldNot(BeNil())
 		Expect(actual.Inner).Should(HaveOccurred())
 		Expect(actual.Inner.Error()).Should(Equal("unrecoverable error occurred"))
-		Expect(actual.LineNumber).Should(Equal(110))
+		Expect(actual.LineNumber).Should(Equal(115))
 		Expect(actual.Message).Should(Equal("API request to test.url/fails failed, " +
 			"Bad Request response returned, Inner Error: TEST ERROR"))
 		Expect(actual.Package).Should(Equal("http"))
 		Expect(actual.StatusCode).Should(Equal(400))
-		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.DoRequest (/goutils/http/client.go 110): " +
+		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.DoRequest (/goutils/http/client.go 115): " +
 			"API request to test.url/fails failed, Bad Request response returned, Inner Error: TEST ERROR, " +
 			"Inner: unrecoverable error occurred."))
 	})
@@ -228,11 +228,11 @@ var _ = Describe("WebClient Tests", func() {
 		Expect(actual.GeneratedAt).ShouldNot(BeNil())
 		Expect(actual.Inner).Should(HaveOccurred())
 		Expect(actual.Inner.Error()).Should(Equal("Read failed"))
-		Expect(actual.LineNumber).Should(Equal(120))
+		Expect(actual.LineNumber).Should(Equal(125))
 		Expect(actual.Message).Should(Equal("Error reading response body"))
 		Expect(actual.Package).Should(Equal("http"))
 		Expect(actual.StatusCode).Should(BeZero())
-		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.GetBody (/goutils/http/client.go 120): " +
+		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.GetBody (/goutils/http/client.go 125): " +
 			"Error reading response body, Inner: Read failed."))
 	})
 
@@ -279,11 +279,11 @@ var _ = Describe("WebClient Tests", func() {
 		Expect(actual.GeneratedAt).ShouldNot(BeNil())
 		Expect(actual.Inner).Should(HaveOccurred())
 		Expect(actual.Inner.Error()).Should(Equal("json: cannot unmarshal string into Go struct field .Value of type int"))
-		Expect(actual.LineNumber).Should(Equal(135))
+		Expect(actual.LineNumber).Should(Equal(140))
 		Expect(actual.Message).Should(Equal("Failed to unmarsahl JSON response body"))
 		Expect(actual.Package).Should(Equal("http"))
 		Expect(actual.StatusCode).Should(BeZero())
-		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.Deserialize (/goutils/http/client.go 135): " +
+		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.Deserialize (/goutils/http/client.go 140): " +
 			"Failed to unmarsahl JSON response body, Inner: json: cannot unmarshal string into Go struct field " +
 			".Value of type int."))
 	})
@@ -359,11 +359,11 @@ var _ = Describe("WebClient Tests", func() {
 		Expect(actual.GeneratedAt).ShouldNot(BeNil())
 		Expect(actual.Inner).Should(HaveOccurred())
 		Expect(actual.Inner.Error()).Should(Equal("Get \"test.url/fails\": RoundTrip failed"))
-		Expect(actual.LineNumber).Should(Equal(110))
+		Expect(actual.LineNumber).Should(Equal(115))
 		Expect(actual.Message).Should(Equal("API request failed; no response received"))
 		Expect(actual.Package).Should(Equal("http"))
 		Expect(actual.StatusCode).Should(BeZero())
-		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.DoRequest (/goutils/http/client.go 110): " +
+		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.DoRequest (/goutils/http/client.go 115): " +
 			"API request failed; no response received, Inner: Get \"test.url/fails\": RoundTrip failed."))
 	})
 
@@ -407,11 +407,11 @@ var _ = Describe("WebClient Tests", func() {
 		Expect(actual.GeneratedAt).ShouldNot(BeNil())
 		Expect(actual.Inner).Should(HaveOccurred())
 		Expect(actual.Inner.Error()).Should(Equal("Read failed"))
-		Expect(actual.LineNumber).Should(Equal(120))
+		Expect(actual.LineNumber).Should(Equal(125))
 		Expect(actual.Message).Should(Equal("Error reading response body"))
 		Expect(actual.Package).Should(Equal("http"))
 		Expect(actual.StatusCode).Should(BeZero())
-		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.GetBody (/goutils/http/client.go 120): " +
+		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.GetBody (/goutils/http/client.go 125): " +
 			"Error reading response body, Inner: Read failed."))
 	})
 
@@ -448,11 +448,11 @@ var _ = Describe("WebClient Tests", func() {
 		Expect(actual.GeneratedAt).ShouldNot(BeNil())
 		Expect(actual.Inner).Should(HaveOccurred())
 		Expect(actual.Inner.Error()).Should(Equal("json: cannot unmarshal string into Go struct field .Value of type int"))
-		Expect(actual.LineNumber).Should(Equal(135))
+		Expect(actual.LineNumber).Should(Equal(140))
 		Expect(actual.Message).Should(Equal("Failed to unmarsahl JSON response body"))
 		Expect(actual.Package).Should(Equal("http"))
 		Expect(actual.StatusCode).Should(BeZero())
-		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.Deserialize (/goutils/http/client.go 135): " +
+		Expect(actual.Error()).Should(HaveSuffix("[test] http.WebClient.Deserialize (/goutils/http/client.go 140): " +
 			"Failed to unmarsahl JSON response body, Inner: json: cannot unmarshal string into Go struct field " +
 			".Value of type int."))
 	})
@@ -486,10 +486,11 @@ var _ = Describe("WebClient Tests", func() {
 func generateClient(client *http.Client) *WebClient {
 	logger := utils.NewLogger("testd", "test")
 	logger.Discard()
-	pClient := WithClient(client, func(client *WebClient, data []byte) string { return "TEST ERROR" }, logger)
-	pClient.startInterval = 1
-	pClient.endInterval = 5
-	pClient.maxElapsed = 10
+	pClient := WithClient(client, logger,
+		WithRetryCodes([]int{http.StatusBadGateway, http.StatusRequestTimeout,
+			http.StatusConflict, http.StatusTooManyRequests}),
+		WithBackoffStart(1), WithBackoffEnd(5), WithBackoffMaxElapsed(10),
+		WithErrorHandler(func(client *WebClient, data []byte) string { return "TEST ERROR" }))
 	return pClient
 }
 

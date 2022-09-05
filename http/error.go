@@ -33,7 +33,7 @@ func (client *WebClient) FromHTTPResponse(err error, resp *http.Response) *Error
 		// API, then we'll want to extract that message. It could either
 		// be in the error field or in the message field
 		var inner string
-		if data, bErr := client.GetBody(resp.Body); bErr == nil {
+		if data, bErr := client.GetBody(resp.Body); bErr == nil && client.errorHandler != nil {
 			inner = client.errorHandler(client, data)
 		}
 
