@@ -296,6 +296,33 @@ var _ = Describe("Common Tests", func() {
 		Expect(list).Should(Equal([]string{"1", "2", "3", "10"}))
 	})
 
+	// Tests that, if the ConvertDictionary function is called with a value of nil for the
+	// list, then an empty map will be returned
+	It("ConvertDictionary - Nil - Works", func() {
+		mapping := ConvertDictionary(nil, func(item int) (string, int) {
+			return strconv.FormatInt(int64(item), 10), item
+		})
+
+		Expect(mapping).Should(BeEmpty())
+	})
+
+	// Tests that, if the ConvertDictionary function is called with a non-nil list, then
+	// the conversion function will be called for each item and the result will be added
+	// to the mappping that is then returned
+	It("ConvertDictionary - List not nil - Works", func() {
+		mapping := ConvertDictionary([]int{1, 2, 42}, func(item int) (string, int) {
+			return strconv.FormatInt(int64(item), 10), item
+		})
+
+		Expect(mapping).Should(HaveLen(3))
+		Expect(mapping).Should(HaveKey("1"))
+		Expect(mapping["1"]).Should(Equal(1))
+		Expect(mapping).Should(HaveKey("2"))
+		Expect(mapping["2"]).Should(Equal(2))
+		Expect(mapping).Should(HaveKey("42"))
+		Expect(mapping["42"]).Should(Equal(42))
+	})
+
 	// Tests the conditions describing how the Contains function will operate
 	DescribeTable("Contains - Conditions",
 		func(list []int, value int, found bool) {

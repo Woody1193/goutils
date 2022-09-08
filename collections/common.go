@@ -98,6 +98,17 @@ func Convert[T any, U any](converter func(T) U, data ...T) []U {
 	return converted
 }
 
+// ConvertDictionary creates a dictionary from a list using the converter function provided
+func ConvertDictionary[T any, U comparable, V any](data []T, converter func(T) (U, V)) map[U]V {
+	mapping := make(map[U]V, len(data))
+	for _, item := range data {
+		key, value := converter(item)
+		mapping[key] = value
+	}
+
+	return mapping
+}
+
 // Contains checks whether or not the value provided exists in list. This
 // function will return true if it does, or false if it doesn't
 func Contains[T comparable](list []T, value T) bool {
