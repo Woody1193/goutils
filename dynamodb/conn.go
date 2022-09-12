@@ -22,14 +22,24 @@ type DatabaseConnection struct {
 }
 
 // NewDatabaseConnection creates a new DynamoDB database connection from an AWS session and logger
-func NewDatabaseConnection(cfg aws.Config, logger *utils.Logger) *DatabaseConnection {
-	return &DatabaseConnection{
+func NewDatabaseConnection(cfg aws.Config, logger *utils.Logger, opts ...IDynamoDBOption) *DatabaseConnection {
+
+	// First, create our database connection from the config and logger with default values
+	conn := DatabaseConnection{
 		db:            dynamodb.NewFromConfig(cfg),
 		startInterval: 500,
 		endInterval:   60000,
 		maxElapsed:    900000,
 		logger:        logger.ChangeFrame(3),
 	}
+
+	// Next, iterate over the options provided and update the associated values in the connection
+	for _, opt := range opts {
+		opt.Apply(&conn)
+	}
+
+	// Finally, return a reference to the connection
+	return &conn
 }
 
 // PutItem writes an item to DynamoDB, overwriting an existing item if there is one
