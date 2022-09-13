@@ -2,12 +2,16 @@ package dynamodb
 
 import (
 	"context"
+	"fmt"
+	"sort"
 
+	"github.com/Woody1193/goutils/dynamodb/testing"
 	"github.com/Woody1193/goutils/utils"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/smithy-go"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -17,7 +21,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 	// Ensure that the AWS config is created before each test; this could be set as a global variable
 	var cfg aws.Config
 	BeforeAll(func() {
-		cfg = TestDynamoDBConfig(context.Background(), "us-east-1", 9000)
+		cfg = testing.TestDynamoDBConfig(context.Background(), "us-east-1", 9000)
 	})
 
 	// Create our test table definition that we'll use for all module tests
@@ -53,17 +57,60 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 
 	// Esnure that the table exists before the start of each test
 	BeforeEach(func() {
-		if err := EnsureTableExists(context.Background(), cfg, &testTable); err != nil {
+		if err := testing.EnsureTableExists(context.Background(), cfg, &testTable); err != nil {
 			panic(err)
 		}
 	})
 
 	// Ensure that the table is empty at the end of each test (not strictly necessary if test data is isolated)
 	AfterEach(func() {
-		if err := EmptyTable(context.Background(), cfg, &testTable); err != nil {
+		if err := testing.EmptyTable(context.Background(), cfg, &testTable); err != nil {
 			panic(err)
 		}
 	})
+
+	// Tests the conditions under which doRetry will attempt to retry a DynamoDB reques
+	DescribeTable("doRetry - Retry Conditions",
+		func(inner error, retries int, message string) {
+
+			// First, create our test failed connection with a logger and backoff conditions
+			logger := utils.NewLogger("testd", "test")
+			logger.Discard()
+			conn := FromClient(&failureDynamoDBClient{err: inner}, logger,
+				WithBackoffStart(1), WithBackoffEnd(5), WithBackoffMaxElapsed(10))
+
+			// Next, attempt to retry a GetItem request until the maximum bakoff time is exceeded
+			count := 0
+			err := conn.doRetry(context.Background(), "TEST_TABLE", "GET", func() error {
+				count++
+				var inner error
+				_, inner = conn.db.GetItem(context.Background(), &dynamodb.GetItemInput{
+					TableName:              aws.String("TEST_TABLE"),
+					ConsistentRead:         aws.Bool(false),
+					ReturnConsumedCapacity: types.ReturnConsumedCapacityNone,
+					Key: map[string]types.AttributeValue{
+						"id":       &types.AttributeValueMemberS{Value: "test_id"},
+						"sort_key": &types.AttributeValueMemberS{Value: "test|sort|key"}}})
+				return inner
+			})
+
+			// Finally, verify the resulting error
+			Expect(err).Should(HaveOccurred())
+			Expect(err.Error()).Should(Equal(message))
+			Expect(count).Should(Equal(retries))
+		},
+		Entry("ProvisionedThroughputExceededException - Retried",
+			&types.ProvisionedThroughputExceededException{Message: aws.String("")}, 4,
+			"operation error : , ProvisionedThroughputExceededException: "),
+		Entry("RequestLimitExceeded - Retried",
+			&types.RequestLimitExceeded{Message: aws.String("")}, 5,
+			"operation error : , RequestLimitExceeded: "),
+		Entry("InternalServerError - Retried",
+			&types.InternalServerError{Message: aws.String("")}, 5,
+			"operation error : , InternalServerError: "),
+		Entry("ResourceNotFoundException - Not Retried",
+			&types.ResourceNotFoundException{Message: aws.String("")}, 1,
+			"operation error : , ResourceNotFoundException: "))
 
 	// Test that, if the inner PutItem request fails, then calling PutItem will return an error
 	It("PutItem - Fails - Error", func() {
@@ -75,7 +122,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		data := testObject{
 			ID:      "test_id",
 			SortKey: "test|sort|key",
-			Data:    "test",
+			Data:    1,
 		}
 
 		// Attempt to marshal the test object into a DynamoDB item structure
@@ -114,7 +161,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		data := testObject{
 			ID:      "test_id",
 			SortKey: "test|sort|key",
-			Data:    "test",
+			Data:    1,
 		}
 
 		// Attempt to marshal the test object into a DynamoDB item structure
@@ -152,7 +199,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		// Verify the data on the test object
 		Expect(read.ID).Should(Equal("test_id"))
 		Expect(read.SortKey).Should(Equal("test|sort|key"))
-		Expect(read.Data).Should(Equal("test"))
+		Expect(read.Data).Should(Equal(1))
 	})
 
 	// Test that, if the inner GetItem request fails, then calling GetItem will return an error
@@ -165,7 +212,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		data := testObject{
 			ID:      "test_id",
 			SortKey: "test|sort|key",
-			Data:    "test",
+			Data:    1,
 		}
 
 		// Attempt to marshal the test object into a DynamoDB item structure
@@ -210,7 +257,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		data := testObject{
 			ID:      "test_id",
 			SortKey: "test|sort|key",
-			Data:    "test",
+			Data:    1,
 		}
 
 		// Attempt to marshal the test object into a DynamoDB item structure
@@ -245,7 +292,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		// Verify the data on the test object
 		Expect(written.ID).Should(Equal("test_id"))
 		Expect(written.SortKey).Should(Equal("test|sort|key"))
-		Expect(written.Data).Should(Equal("test"))
+		Expect(written.Data).Should(Equal(1))
 	})
 
 	// Test that, if the inner UpdateItem request fails, then calling UpdateItem will return an error
@@ -258,7 +305,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		data := testObject{
 			ID:      "test_id",
 			SortKey: "test|sort|key",
-			Data:    "test",
+			Data:    1,
 		}
 
 		// Attempt to marshal the test object into a DynamoDB item structure
@@ -305,7 +352,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		data := testObject{
 			ID:      "test_id",
 			SortKey: "test|sort|key",
-			Data:    "test",
+			Data:    1,
 		}
 
 		// Attempt to marshal the test object into a DynamoDB item structure
@@ -326,7 +373,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 			TableName:                   aws.String("TEST_TABLE"),
 			UpdateExpression:            aws.String("SET #d = :val"),
 			ExpressionAttributeNames:    map[string]string{"#d": "data"},
-			ExpressionAttributeValues:   map[string]types.AttributeValue{":val": &types.AttributeValueMemberS{Value: "test2"}},
+			ExpressionAttributeValues:   map[string]types.AttributeValue{":val": &types.AttributeValueMemberN{Value: "2"}},
 			ReturnConsumedCapacity:      types.ReturnConsumedCapacityNone,
 			ReturnItemCollectionMetrics: types.ReturnItemCollectionMetricsNone,
 			ReturnValues:                types.ReturnValueAllNew,
@@ -344,7 +391,301 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		// Verify the data on the test object
 		Expect(updated.ID).Should(Equal("test_id"))
 		Expect(updated.SortKey).Should(Equal("test|sort|key"))
-		Expect(updated.Data).Should(Equal("test2"))
+		Expect(updated.Data).Should(Equal(2))
+	})
+
+	// Test that, if the inner DeleteItem request fails, then calling DeleteItem will return an error
+	It("DeleteItem - Fails - Error", func() {
+
+		// First, create our test database connection from our test config
+		conn := createTestConnection(cfg)
+
+		// Create our test object with some fake data
+		data := testObject{
+			ID:      "test_id",
+			SortKey: "test|sort|key",
+			Data:    1,
+		}
+
+		// Attempt to marshal the test object into a DynamoDB item structure
+		attrs, err := attributevalue.MarshalMapWithOptions(&data,
+			func(eo *attributevalue.EncoderOptions) { eo.TagKey = "json" })
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Next, attempt to write a test object to the database; this should not fail
+		_, err = conn.db.PutItem(context.Background(), &dynamodb.PutItemInput{
+			Item:                        attrs,
+			TableName:                   aws.String("TEST_TABLE"),
+			ReturnConsumedCapacity:      types.ReturnConsumedCapacityNone,
+			ReturnItemCollectionMetrics: types.ReturnItemCollectionMetricsNone})
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Now, attempt to delete the item we just put into the table; this should fail
+		output, err := conn.DeleteItem(context.Background(), &dynamodb.DeleteItemInput{
+			TableName:                   aws.String("FAKE_TABLE"),
+			ReturnConsumedCapacity:      types.ReturnConsumedCapacityNone,
+			ReturnItemCollectionMetrics: types.ReturnItemCollectionMetricsNone,
+			ReturnValues:                types.ReturnValueNone,
+			Key: map[string]types.AttributeValue{
+				"id":       &types.AttributeValueMemberS{Value: "test_id"},
+				"sort_key": &types.AttributeValueMemberS{Value: "test|sort|key"},
+			},
+		})
+
+		// Finally, verify the details of the error
+		Expect(output).Should(BeNil())
+		Expect(err).Should(HaveOccurred())
+		Expect(err.Error()).Should(And(
+			HavePrefix("operation error DynamoDB: DeleteItem, https response error StatusCode: 400, RequestID: "),
+			HaveSuffix(", ResourceNotFoundException: ")))
+	})
+
+	// Test that, if no failure occurs, then calling DeleteItem will result in the item being
+	// removed from the associated table in the database
+	It("DeleteItem - No failures - Data removed", func() {
+
+		// First, create our test database connection from our test config
+		conn := createTestConnection(cfg)
+
+		// Create our test object with some fake data
+		data := testObject{
+			ID:      "test_id",
+			SortKey: "test|sort|key",
+			Data:    1,
+		}
+
+		// Attempt to marshal the test object into a DynamoDB item structure
+		attrs, err := attributevalue.MarshalMapWithOptions(&data,
+			func(eo *attributevalue.EncoderOptions) { eo.TagKey = "json" })
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Next, attempt to write a test object to the database; this should not fail
+		_, err = conn.db.PutItem(context.Background(), &dynamodb.PutItemInput{
+			Item:                        attrs,
+			TableName:                   aws.String("TEST_TABLE"),
+			ReturnConsumedCapacity:      types.ReturnConsumedCapacityNone,
+			ReturnItemCollectionMetrics: types.ReturnItemCollectionMetricsNone})
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Now, attempt to delete the item we just put into the table; this should not fail
+		dOut, err := conn.DeleteItem(context.Background(), &dynamodb.DeleteItemInput{
+			TableName:                   aws.String("TEST_TABLE"),
+			ReturnConsumedCapacity:      types.ReturnConsumedCapacityNone,
+			ReturnItemCollectionMetrics: types.ReturnItemCollectionMetricsNone,
+			ReturnValues:                types.ReturnValueAllOld,
+			Key: map[string]types.AttributeValue{
+				"id":       &types.AttributeValueMemberS{Value: "test_id"},
+				"sort_key": &types.AttributeValueMemberS{Value: "test|sort|key"}}})
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Attempt to unmarshal the output response into a test object
+		var updated *testObject
+		err = attributevalue.UnmarshalMapWithOptions(dOut.Attributes, &updated,
+			func(eo *attributevalue.DecoderOptions) { eo.TagKey = "json" })
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Verify the data on the test object
+		Expect(updated.ID).Should(Equal("test_id"))
+		Expect(updated.SortKey).Should(Equal("test|sort|key"))
+		Expect(updated.Data).Should(Equal(1))
+
+		// Finally, attempt to get the deleted item from the table; this should return no data
+		gOut, err := conn.db.GetItem(context.Background(), &dynamodb.GetItemInput{
+			TableName:              aws.String("TEST_TABLE"),
+			ReturnConsumedCapacity: types.ReturnConsumedCapacityNone,
+			ConsistentRead:         aws.Bool(true),
+			Key: map[string]types.AttributeValue{
+				"id":       &types.AttributeValueMemberS{Value: "test_id"},
+				"sort_key": &types.AttributeValueMemberS{Value: "test|sort|key"}}})
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Verify that we retrieved no data
+		Expect(gOut.Item).Should(BeEmpty())
+	})
+
+	// Test that, if the BatchWriteItem request fails, then calling BatchWrite will return an error
+	It("BatchWrite - Fails - Error", func() {
+
+		// First, create our test database connection from our test config
+		conn := createTestConnection(cfg)
+
+		// Next, create our test object with some fake data
+		data := testObject{
+			ID:      "test_id",
+			SortKey: "test|sort|key",
+			Data:    1,
+		}
+
+		// Now, attempt to marshal the test object into a DynamoDB item structure
+		attrs, err := attributevalue.MarshalMapWithOptions(&data,
+			func(eo *attributevalue.EncoderOptions) { eo.TagKey = "json" })
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Finally, attempt to batch-write our requests to DynamoDB; this should fail
+		err = conn.BatchWrite(context.Background(), "FAKE_TABLE",
+			types.WriteRequest{PutRequest: &types.PutRequest{Item: attrs}})
+		Expect(err).Should(HaveOccurred())
+		Expect(err.Error()).Should(And(
+			HavePrefix("operation error DynamoDB: BatchWriteItem, https response error StatusCode: 400, RequestID: "),
+			HaveSuffix(", ResourceNotFoundException: ")))
+	})
+
+	// Test that, if no failure occurs, then calling BatchWrite will result in the items being written
+	// to the table in DynamoDB
+	It("BatchWrite - No failures - Data written", func() {
+
+		// First, create our test database connection from our test config
+		conn := createTestConnection(cfg)
+
+		// Next, create our list of write requests
+		requests := make([]types.WriteRequest, 47)
+		for i := 0; i < 47; i++ {
+
+			// First, create our test object with some fake data
+			data := testObject{
+				ID:      "test_id",
+				SortKey: fmt.Sprintf("test|sort|key|%d", i),
+				Data:    i,
+			}
+
+			// Next, attempt to marshal the test object into a DynamoDB item structure
+			attrs, err := attributevalue.MarshalMapWithOptions(&data,
+				func(eo *attributevalue.EncoderOptions) { eo.TagKey = "json" })
+			Expect(err).ShouldNot(HaveOccurred())
+
+			// Finally, create the write request and add it to our list of such requests
+			requests[i] = types.WriteRequest{
+				PutRequest: &types.PutRequest{
+					Item: attrs,
+				},
+			}
+		}
+
+		// Now, attempt to batch-write our requests to DynamoDB; this should not fail
+		err := conn.BatchWrite(context.Background(), "TEST_TABLE", requests...)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Finally, do a query to retrieve all the items we wrote; this should not fail
+		output, err := conn.db.Query(context.Background(), &dynamodb.QueryInput{
+			TableName:                aws.String("TEST_TABLE"),
+			ConsistentRead:           aws.Bool(true),
+			KeyConditionExpression:   aws.String("#id = :id AND begins_with(#sk, :sk)"),
+			ExpressionAttributeNames: map[string]string{"#id": "id", "#sk": "sort_key"},
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":id": &types.AttributeValueMemberS{Value: "test_id"},
+				":sk": &types.AttributeValueMemberS{Value: "test|sort|key|"}}})
+		Expect(err).ShouldNot(HaveOccurred())
+		Expect(output.Count).Should(Equal(int32(47)))
+
+		// Attempt to deserialize the results into a list of test objects; this should not fail
+		var results []*testObject
+		err = attributevalue.UnmarshalListOfMapsWithOptions(output.Items, &results,
+			func(eo *attributevalue.DecoderOptions) { eo.TagKey = "json" })
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Sort the results by sort key to ensure that the test either passes or fails deterministicallyu
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].Data < results[j].Data
+		})
+
+		// Verify the results that we retrieved with the query
+		for i := 0; i < 47; i++ {
+			Expect(results[i].ID).Should(Equal("test_id"))
+			Expect(results[i].SortKey).Should(Equal(fmt.Sprintf("test|sort|key|%d", i)))
+			Expect(results[i].Data).Should(Equal(i))
+		}
+	})
+
+	// Test that, if the inner Query request fails, then calling Query will return an error
+	It("Query - Fails - Error", func() {
+
+		// First, create our test database connection from our test config
+		conn := createTestConnection(cfg)
+
+		// Next, attempt to query items from the table; this should fail
+		items, err := conn.Query(context.Background(), &dynamodb.QueryInput{
+			TableName:                aws.String("FAKE_TABLE"),
+			ConsistentRead:           aws.Bool(true),
+			KeyConditionExpression:   aws.String("#id = :id AND begins_with(#sk, :sk)"),
+			ExpressionAttributeNames: map[string]string{"#id": "id", "#sk": "sort_key"},
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":id": &types.AttributeValueMemberS{Value: "test_id"},
+				":sk": &types.AttributeValueMemberS{Value: "test|sort|key|"},
+			},
+		})
+
+		// Finally, verify the failure
+		Expect(items).Should(BeEmpty())
+		Expect(err).Should(HaveOccurred())
+		Expect(err.Error()).Should(And(
+			HavePrefix("operation error DynamoDB: Query, https response error StatusCode: 400, RequestID: "),
+			HaveSuffix(", ResourceNotFoundException: ")))
+	})
+
+	// Test that, if no failure occurs, then calling Query will result in the items being retrieved
+	// from the table in DynamoDB
+	It("Query - No failures - Data returned", func() {
+
+		// First, create our test database connection from our test config
+		conn := createTestConnection(cfg)
+
+		// Next, create our list of write requests
+		size := 50
+		requests := make([]types.WriteRequest, size)
+		for i := 0; i < size; i++ {
+
+			// First, create our test object with some fake data
+			data := testObject{
+				ID:      "test_id",
+				SortKey: fmt.Sprintf("test|sort|key|%d", i),
+				Data:    i,
+			}
+
+			// Next, attempt to marshal the test object into a DynamoDB item structure
+			attrs, err := attributevalue.MarshalMapWithOptions(&data,
+				func(eo *attributevalue.EncoderOptions) { eo.TagKey = "json" })
+			Expect(err).ShouldNot(HaveOccurred())
+
+			// Finally, create the write request and add it to our list of such requests
+			requests[i] = types.WriteRequest{
+				PutRequest: &types.PutRequest{
+					Item: attrs,
+				},
+			}
+		}
+
+		// Now, attempt to batch-write our requests to DynamoDB; this should not fail
+		err := conn.BatchWrite(context.Background(), "TEST_TABLE", requests...)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Finally, attempt to query the data in DynamoDB; this should not fail
+		items, err := conn.Query(context.Background(), &dynamodb.QueryInput{
+			TableName:                aws.String("TEST_TABLE"),
+			ConsistentRead:           aws.Bool(true),
+			Limit:                    aws.Int32(25),
+			KeyConditionExpression:   aws.String("#id = :id AND begins_with(#sk, :sk)"),
+			ExpressionAttributeNames: map[string]string{"#id": "id", "#sk": "sort_key"},
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":id": &types.AttributeValueMemberS{Value: "test_id"},
+				":sk": &types.AttributeValueMemberS{Value: "test|sort|key|"}}})
+
+		// Attempt to deserialize the results into a list of test objects; this should not fail
+		var results []*testObject
+		err = attributevalue.UnmarshalListOfMapsWithOptions(items, &results,
+			func(eo *attributevalue.DecoderOptions) { eo.TagKey = "json" })
+		Expect(err).ShouldNot(HaveOccurred())
+
+		// Sort the results by sort key to ensure that the test either passes or fails deterministicallyu
+		sort.Slice(results, func(i, j int) bool {
+			return results[i].Data < results[j].Data
+		})
+
+		// Verify the results that we retrieved with the query
+		for i := 0; i < size; i++ {
+			Expect(results[i].ID).Should(Equal("test_id"))
+			Expect(results[i].SortKey).Should(Equal(fmt.Sprintf("test|sort|key|%d", i)))
+			Expect(results[i].Data).Should(Equal(i))
+		}
 	})
 })
 
@@ -356,9 +697,24 @@ func createTestConnection(cfg aws.Config) *DatabaseConnection {
 		WithBackoffStart(1), WithBackoffEnd(5), WithBackoffMaxElapsed(10))
 }
 
+// Helper type that is used to test various error conditions as returned by DynamoDB
+type failureDynamoDBClient struct {
+	DynamoDBAPI
+	err error
+}
+
+// Mocks out the GetItem function so that it returns an error similar to what the actual AWS
+// operation would generate
+func (client *failureDynamoDBClient) GetItem(ctx context.Context, params *dynamodb.GetItemInput,
+	optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+	return nil, &smithy.OperationError{
+		Err: client.err,
+	}
+}
+
 // Helper type that we'll use to test DynamoDB functionality
 type testObject struct {
 	ID      string `json:"id"`
 	SortKey string `json:"sort_key"`
-	Data    string `json:"data"`
+	Data    int    `json:"data"`
 }

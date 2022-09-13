@@ -9,12 +9,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/smithy-go"
 	"github.com/cenkalti/backoff/v4"
 )
 
 // DatabaseConnection contains functinoality allowing for systemical access to DynamoDB
 type DatabaseConnection struct {
-	db            *dynamodb.Client
+	db            DynamoDBAPI
 	startInterval time.Duration
 	endInterval   time.Duration
 	maxElapsed    time.Duration
@@ -23,10 +24,15 @@ type DatabaseConnection struct {
 
 // NewDatabaseConnection creates a new DynamoDB database connection from an AWS session and logger
 func NewDatabaseConnection(cfg aws.Config, logger *utils.Logger, opts ...IDynamoDBOption) *DatabaseConnection {
+	return FromClient(dynamodb.NewFromConfig(cfg), logger, opts...)
+}
+
+// FromClient creates a new DynamoDB database connection from a DynamoDB client, a logger and options
+func FromClient(inner DynamoDBAPI, logger *utils.Logger, opts ...IDynamoDBOption) *DatabaseConnection {
 
 	// First, create our database connection from the config and logger with default values
 	conn := DatabaseConnection{
-		db:            dynamodb.NewFromConfig(cfg),
+		db:            inner,
 		startInterval: 500,
 		endInterval:   60000,
 		maxElapsed:    900000,
@@ -109,7 +115,7 @@ func (conn *DatabaseConnection) DeleteItem(ctx context.Context,
 // BatchWrite makes a number of write requests against a table in DynamoDB. This
 // function does not return collection or capacity statistics.
 func (conn *DatabaseConnection) BatchWrite(ctx context.Context, tableName string,
-	requests []types.WriteRequest) error {
+	requests ...types.WriteRequest) error {
 
 	// First, calculate the length from the number of requests. If there were no requests
 	// then exit (this also serves as the base case for our recursion)
@@ -147,7 +153,7 @@ func (conn *DatabaseConnection) BatchWrite(ctx context.Context, tableName string
 
 	// Finally, again attempt to do a batch write to the table with our unprocessed data
 	conn.logger.Log("Batch-write to %s completed. Retries? %t", len(retries) == 0)
-	return conn.BatchWrite(ctx, tableName, retries)
+	return conn.BatchWrite(ctx, tableName, retries...)
 }
 
 // Query makes a search on a DynamoDB table and returns the results. This function does not
@@ -233,7 +239,8 @@ func (conn *DatabaseConnection) doRetry(ctx context.Context, tableName string, v
 			// limit exceptions, waiting a bit may allow the request to succeed. For internal server
 			// errors, since we're not sure of the cause, we'll wait to see if the service manages
 			// to fix itself. Otherwise, we'll return the error wrapped in a permanent failure
-			switch casted := err.(type) {
+			inner := err.(*smithy.OperationError)
+			switch casted := inner.Err.(type) {
 			case *types.ProvisionedThroughputExceededException:
 				message = *casted.Message
 			case *types.RequestLimitExceeded:
