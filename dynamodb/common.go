@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
+// DynamoDBAPI describes all the functionality implemented by the AWS Go SDK v2 DynamoDB client
 type DynamoDBAPI interface {
 
 	// This operation allows you to perform batch reads or writes on data stored in
