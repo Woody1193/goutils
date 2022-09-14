@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/Woody1193/goutils/dynamodb/testing"
+	"github.com/Woody1193/goutils/testutils"
 	"github.com/Woody1193/goutils/utils"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -71,7 +72,7 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 
 	// Tests the conditions under which doRetry will attempt to retry a DynamoDB reques
 	DescribeTable("doRetry - Retry Conditions",
-		func(inner error, retries int, message string) {
+		func(inner error, retries int, verifier func(*utils.GError)) {
 
 			// First, create our test failed connection with a logger and backoff conditions
 			logger := utils.NewLogger("testd", "test")
@@ -95,22 +96,40 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 			})
 
 			// Finally, verify the resulting error
-			Expect(err).Should(HaveOccurred())
-			Expect(err.Error()).Should(Equal(message))
+			casted := err.(*Error)
 			Expect(count).Should(Equal(retries))
+			Expect(err).Should(HaveOccurred())
+			Expect(casted.TableName).Should(Equal("TEST_TABLE"))
+			verifier(casted.GError)
 		},
 		Entry("ProvisionedThroughputExceededException - Retried",
 			&types.ProvisionedThroughputExceededException{Message: aws.String("")}, 4,
-			"operation error : , ProvisionedThroughputExceededException: "),
+			testutils.ErrorVerifier("test", "dynamodb", "/goutils/dynamodb/conn_test.go", "glob",
+				"", 85, testutils.InnerErrorVerifier("operation error : , ProvisionedThroughputExceededException: "),
+				"GET request to TEST_TABLE in DynamoDB failed", "[test] dynamodb.glob. "+
+					"(/goutils/dynamodb/conn_test.go 85): GET request to TEST_TABLE in DynamoDB failed, "+
+					"Inner: operation error : , ProvisionedThroughputExceededException: .")),
 		Entry("RequestLimitExceeded - Retried",
 			&types.RequestLimitExceeded{Message: aws.String("")}, 5,
-			"operation error : , RequestLimitExceeded: "),
+			testutils.ErrorVerifier("test", "dynamodb", "/goutils/dynamodb/conn_test.go", "glob",
+				"", 85, testutils.InnerErrorVerifier("operation error : , RequestLimitExceeded: "),
+				"GET request to TEST_TABLE in DynamoDB failed", "[test] dynamodb.glob. "+
+					"(/goutils/dynamodb/conn_test.go 85): GET request to TEST_TABLE in DynamoDB failed, "+
+					"Inner: operation error : , RequestLimitExceeded: .")),
 		Entry("InternalServerError - Retried",
 			&types.InternalServerError{Message: aws.String("")}, 5,
-			"operation error : , InternalServerError: "),
+			testutils.ErrorVerifier("test", "dynamodb", "/goutils/dynamodb/conn_test.go", "glob",
+				"", 85, testutils.InnerErrorVerifier("operation error : , InternalServerError: "),
+				"GET request to TEST_TABLE in DynamoDB failed", "[test] dynamodb.glob. "+
+					"(/goutils/dynamodb/conn_test.go 85): GET request to TEST_TABLE in DynamoDB failed, "+
+					"Inner: operation error : , InternalServerError: .")),
 		Entry("ResourceNotFoundException - Not Retried",
 			&types.ResourceNotFoundException{Message: aws.String("")}, 1,
-			"operation error : , ResourceNotFoundException: "))
+			testutils.ErrorVerifier("test", "dynamodb", "/goutils/dynamodb/conn_test.go", "glob",
+				"", 85, testutils.InnerErrorVerifier("operation error : , ResourceNotFoundException: "),
+				"GET request to TEST_TABLE in DynamoDB failed", "[test] dynamodb.glob. "+
+					"(/goutils/dynamodb/conn_test.go 85): GET request to TEST_TABLE in DynamoDB failed, "+
+					"Inner: operation error : , ResourceNotFoundException: .")))
 
 	// Test that, if the inner PutItem request fails, then calling PutItem will return an error
 	It("PutItem - Fails - Error", func() {
@@ -143,11 +162,17 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		output, err := conn.PutItem(context.Background(), &input)
 
 		// Verify the failure
+		casted := err.(*Error)
 		Expect(output).Should(BeNil())
 		Expect(err).Should(HaveOccurred())
-		Expect(err.Error()).Should(And(
-			HavePrefix("operation error DynamoDB: PutItem, https response error StatusCode: 400, RequestID: "),
-			HaveSuffix(", ResourceNotFoundException: ")))
+		Expect(casted.TableName).Should(Equal("FAKE_TABLE"))
+		testutils.ErrorVerifier("test", "dynamodb", "/goutils/dynamodb/conn.go", "DatabaseConnection",
+			"PutItem", 58, testutils.InnerErrorPrefixSuffixVerifier("operation error DynamoDB: PutItem, "+
+				"https response error StatusCode: 400, RequestID: ", ", ResourceNotFoundException: "),
+			"PUT request to FAKE_TABLE in DynamoDB failed", "[test] dynamodb.DatabaseConnection.PutItem "+
+				"(/goutils/dynamodb/conn.go 58): PUT request to FAKE_TABLE in DynamoDB failed, Inner: "+
+				"operation error DynamoDB: PutItem, https response error StatusCode: 400, RequestID: ",
+			", ResourceNotFoundException: .")(casted.GError)
 	})
 
 	// Test that, if no failure occurs, then calling PutItem will result in the item being written
@@ -239,11 +264,17 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 			}})
 
 		// Finally, verify the details of the error
+		casted := err.(*Error)
 		Expect(output).Should(BeNil())
 		Expect(err).Should(HaveOccurred())
-		Expect(err.Error()).Should(And(
-			HavePrefix("operation error DynamoDB: GetItem, https response error StatusCode: 400, RequestID: "),
-			HaveSuffix(", ResourceNotFoundException: ")))
+		Expect(casted.TableName).Should(Equal("FAKE_TABLE"))
+		testutils.ErrorVerifier("test", "dynamodb", "/goutils/dynamodb/conn.go", "DatabaseConnection",
+			"GetItem", 74, testutils.InnerErrorPrefixSuffixVerifier("operation error DynamoDB: GetItem, "+
+				"https response error StatusCode: 400, RequestID: ", ", ResourceNotFoundException: "),
+			"GET request to FAKE_TABLE in DynamoDB failed", "[test] dynamodb.DatabaseConnection.GetItem "+
+				"(/goutils/dynamodb/conn.go 74): GET request to FAKE_TABLE in DynamoDB failed, Inner: "+
+				"operation error DynamoDB: GetItem, https response error StatusCode: 400, RequestID: ",
+			", ResourceNotFoundException: .")(casted.GError)
 	})
 
 	// Test that, if no failure occurs, then calling GetItem will result in the item being read
@@ -334,11 +365,17 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 				"sort_key": &types.AttributeValueMemberS{Value: "test|sort|key"}}})
 
 		// Finally, verify the details of the error
+		casted := err.(*Error)
 		Expect(output).Should(BeNil())
 		Expect(err).Should(HaveOccurred())
-		Expect(err.Error()).Should(And(
-			HavePrefix("operation error DynamoDB: UpdateItem, https response error StatusCode: 400, RequestID: "),
-			HaveSuffix(", ResourceNotFoundException: ")))
+		Expect(casted.TableName).Should(Equal("FAKE_TABLE"))
+		testutils.ErrorVerifier("test", "dynamodb", "/goutils/dynamodb/conn.go", "DatabaseConnection",
+			"UpdateItem", 90, testutils.InnerErrorPrefixSuffixVerifier("operation error DynamoDB: UpdateItem, "+
+				"https response error StatusCode: 400, RequestID: ", ", ResourceNotFoundException: "),
+			"UPDATE request to FAKE_TABLE in DynamoDB failed", "[test] dynamodb.DatabaseConnection.UpdateItem "+
+				"(/goutils/dynamodb/conn.go 90): UPDATE request to FAKE_TABLE in DynamoDB failed, Inner: "+
+				"operation error DynamoDB: UpdateItem, https response error StatusCode: 400, RequestID: ",
+			", ResourceNotFoundException: .")(casted.GError)
 	})
 
 	// Test that, if no failure occurs, then calling UpdateItem will result in the item being
@@ -433,11 +470,17 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		})
 
 		// Finally, verify the details of the error
+		casted := err.(*Error)
 		Expect(output).Should(BeNil())
 		Expect(err).Should(HaveOccurred())
-		Expect(err.Error()).Should(And(
-			HavePrefix("operation error DynamoDB: DeleteItem, https response error StatusCode: 400, RequestID: "),
-			HaveSuffix(", ResourceNotFoundException: ")))
+		Expect(casted.TableName).Should(Equal("FAKE_TABLE"))
+		testutils.ErrorVerifier("test", "dynamodb", "/goutils/dynamodb/conn.go", "DatabaseConnection",
+			"DeleteItem", 106, testutils.InnerErrorPrefixSuffixVerifier("operation error DynamoDB: DeleteItem, "+
+				"https response error StatusCode: 400, RequestID: ", ", ResourceNotFoundException: "),
+			"DELETE request to FAKE_TABLE in DynamoDB failed", "[test] dynamodb.DatabaseConnection.DeleteItem "+
+				"(/goutils/dynamodb/conn.go 106): DELETE request to FAKE_TABLE in DynamoDB failed, Inner: "+
+				"operation error DynamoDB: DeleteItem, https response error StatusCode: 400, RequestID: ",
+			", ResourceNotFoundException: .")(casted.GError)
 	})
 
 	// Test that, if no failure occurs, then calling DeleteItem will result in the item being
@@ -524,10 +567,18 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		// Finally, attempt to batch-write our requests to DynamoDB; this should fail
 		err = conn.BatchWrite(context.Background(), "FAKE_TABLE",
 			types.WriteRequest{PutRequest: &types.PutRequest{Item: attrs}})
+
+		// Verify the details of the error
+		casted := err.(*Error)
 		Expect(err).Should(HaveOccurred())
-		Expect(err.Error()).Should(And(
-			HavePrefix("operation error DynamoDB: BatchWriteItem, https response error StatusCode: 400, RequestID: "),
-			HaveSuffix(", ResourceNotFoundException: ")))
+		Expect(casted.TableName).Should(Equal("FAKE_TABLE"))
+		testutils.ErrorVerifier("test", "dynamodb", "/goutils/dynamodb/conn.go", "DatabaseConnection",
+			"batchWriteInner", 215, testutils.InnerErrorPrefixSuffixVerifier("operation error DynamoDB: BatchWriteItem, "+
+				"https response error StatusCode: 400, RequestID: ", ", ResourceNotFoundException: "),
+			"BATCH WRITE request to FAKE_TABLE in DynamoDB failed", "[test] dynamodb.DatabaseConnection.batchWriteInner "+
+				"(/goutils/dynamodb/conn.go 215): BATCH WRITE request to FAKE_TABLE in DynamoDB failed, Inner: "+
+				"operation error DynamoDB: BatchWriteItem, https response error StatusCode: 400, RequestID: ",
+			", ResourceNotFoundException: .")(casted.GError)
 	})
 
 	// Test that, if no failure occurs, then calling BatchWrite will result in the items being written
@@ -615,11 +666,17 @@ var _ = Describe("Database Connection Tests", Ordered, func() {
 		})
 
 		// Finally, verify the failure
+		casted := err.(*Error)
 		Expect(items).Should(BeEmpty())
 		Expect(err).Should(HaveOccurred())
-		Expect(err.Error()).Should(And(
-			HavePrefix("operation error DynamoDB: Query, https response error StatusCode: 400, RequestID: "),
-			HaveSuffix(", ResourceNotFoundException: ")))
+		Expect(casted.TableName).Should(Equal("FAKE_TABLE"))
+		testutils.ErrorVerifier("test", "dynamodb", "/goutils/dynamodb/conn.go", "DatabaseConnection",
+			"Query", 170, testutils.InnerErrorPrefixSuffixVerifier("operation error DynamoDB: Query, "+
+				"https response error StatusCode: 400, RequestID: ", ", ResourceNotFoundException: "),
+			"QUERY(0) request to FAKE_TABLE in DynamoDB failed", "[test] dynamodb.DatabaseConnection.Query "+
+				"(/goutils/dynamodb/conn.go 170): QUERY(0) request to FAKE_TABLE in DynamoDB failed, Inner: "+
+				"operation error DynamoDB: Query, https response error StatusCode: 400, RequestID: ",
+			", ResourceNotFoundException: .")(casted.GError)
 	})
 
 	// Test that, if no failure occurs, then calling Query will result in the items being retrieved

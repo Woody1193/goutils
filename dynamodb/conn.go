@@ -36,7 +36,7 @@ func FromClient(inner DynamoDBAPI, logger *utils.Logger, opts ...IDynamoDBOption
 		startInterval: 500,
 		endInterval:   60000,
 		maxElapsed:    900000,
-		logger:        logger.ChangeFrame(3),
+		logger:        logger.ChangeFrame(4),
 	}
 
 	// Next, iterate over the options provided and update the associated values in the connection
@@ -71,7 +71,7 @@ func (conn *DatabaseConnection) GetItem(ctx context.Context,
 	// Attempt to retry the operation to get the item from the table; if this
 	// fails then we'll return the associated error. Otherwise, return the output
 	var output *dynamodb.GetItemOutput
-	err := conn.doRetry(ctx, *input.TableName, "PUT", func() error {
+	err := conn.doRetry(ctx, *input.TableName, "GET", func() error {
 		var inner error
 		output, inner = conn.db.GetItem(ctx, input)
 		return inner
@@ -231,7 +231,9 @@ func (conn *DatabaseConnection) batchWriteInner(ctx context.Context, tableName s
 func (conn *DatabaseConnection) doRetry(ctx context.Context, tableName string, verb string,
 	operation func() error) error {
 	conn.logger.Log("Attempting %s operation to %s in DynamoDB...", verb, tableName)
-	return backoff.Retry(func() error {
+
+	// Attempt the operation with a backoff in the case where an intermittent failure occurs
+	err := backoff.Retry(func() error {
 		if err := operation(); err != nil {
 			var message string
 
@@ -263,6 +265,13 @@ func (conn *DatabaseConnection) doRetry(ctx context.Context, tableName string, v
 		conn.logger.Log("Completed %s operation to %s in DynamoDB", verb, tableName)
 		return nil
 	}, backoff.WithContext(conn.createExponentialBackoff(), ctx))
+
+	// For whatever reason, the operation failed so create an error and return it
+	if err != nil {
+		return conn.NewError(err, tableName, "%s request to %s in DynamoDB failed", verb, tableName)
+	}
+
+	return nil
 }
 
 // Helper function that can be used to create an exponential backoff
