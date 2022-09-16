@@ -57,6 +57,13 @@ func (provider ErrorProvider) GenerateError(env string, inner error,
 	ptr, file, line, _ := runtime.Caller(provider.SkipFrames)
 	funcObj := runtime.FuncForPC(ptr)
 
+	// Split the file by the string "vendor" so we can handle cases where a vendor
+	// package produces this error (this will override the normal package rules)
+	splitByVendor := strings.SplitAfter(file, "vendor")
+	if len(splitByVendor) > 1 {
+		file = splitByVendor[1]
+	}
+
 	// In order to avoid printing the path all the way to the root, let's
 	// split the path at a set package base and then join after it so we can
 	// strip off anything that's not really necessary to describe the file
